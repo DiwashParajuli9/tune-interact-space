@@ -95,6 +95,8 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background: linear-gradient(to bottom, #0f0f0f, #1a1a1a);
+    color: white;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -159,3 +161,18 @@
 .page-exit {
   @apply animate-fade-out;
 }
+
+/* Text gradient utils */
+.text-gradient {
+  @apply bg-clip-text text-transparent;
+}
+
+.neon-glow {
+  text-shadow: 0 0 5px rgba(255,255,255,0.5), 0 0 10px rgba(255,255,255,0.3);
+}
+
+/* Glassmorphism cards */
+.glass-card {
+  @apply backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl shadow-lg;
+}
+
