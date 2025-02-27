@@ -1,18 +1,21 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
+import * as api from "@/lib/api";
 
 // Types
-interface Song {
+export interface Song {
   id: string;
   title: string;
   artist: string;
   albumCover: string;
   audioSrc: string;
   duration: number;
+  artistId?: string;
+  albumId?: string;
 }
 
-interface Artist {
+export interface Artist {
   id: string;
   name: string;
   image: string;
@@ -20,11 +23,12 @@ interface Artist {
   bio: string;
 }
 
-interface Playlist {
+export interface Playlist {
   id: string;
   name: string;
   songs: Song[];
   createdAt: Date;
+  cover?: string;
 }
 
 interface MusicContextType {
@@ -36,6 +40,9 @@ interface MusicContextType {
   artists: Artist[];
   playlists: Playlist[];
   queue: Song[];
+  trendingSongs: Song[];
+  recentlyPlayed: Song[];
+  isLoading: boolean;
   playSong: (song: Song) => void;
   pauseSong: () => void;
   nextSong: () => void;
@@ -44,106 +51,11 @@ interface MusicContextType {
   addToPlaylist: (playlistId: string, songId: string) => void;
   createPlaylist: (name: string) => void;
   removeFromPlaylist: (playlistId: string, songId: string) => void;
-  searchSongs: (query: string) => Song[];
-  searchArtists: (query: string) => Artist[];
+  searchSongs: (query: string) => Promise<Song[]>;
+  searchArtists: (query: string) => Promise<Artist[]>;
+  getArtistSongs: (artistId: string) => Promise<Song[]>;
+  addToRecentlyPlayed: (song: Song) => void;
 }
-
-// Mock data
-const mockSongs: Song[] = [
-  {
-    id: "1",
-    title: "Tranquil Mornings",
-    artist: "Serene Echo",
-    albumCover: "/placeholder.svg",
-    audioSrc: "#",
-    duration: 235,
-  },
-  {
-    id: "2",
-    title: "Midnight Memories",
-    artist: "Luna Wave",
-    albumCover: "/placeholder.svg",
-    audioSrc: "#",
-    duration: 198,
-  },
-  {
-    id: "3",
-    title: "Digital Dreams",
-    artist: "Pixel Pulse",
-    albumCover: "/placeholder.svg",
-    audioSrc: "#",
-    duration: 267,
-  },
-  {
-    id: "4",
-    title: "Ocean Reflections",
-    artist: "Coastal Mind",
-    albumCover: "/placeholder.svg",
-    audioSrc: "#",
-    duration: 221,
-  },
-  {
-    id: "5",
-    title: "Urban Symphony",
-    artist: "City Sounds",
-    albumCover: "/placeholder.svg",
-    audioSrc: "#",
-    duration: 312,
-  },
-  {
-    id: "6",
-    title: "Ethereal Whispers",
-    artist: "Astral Voices",
-    albumCover: "/placeholder.svg",
-    audioSrc: "#",
-    duration: 176,
-  },
-];
-
-const mockArtists: Artist[] = [
-  {
-    id: "1",
-    name: "Serene Echo",
-    image: "/placeholder.svg",
-    genre: "Ambient",
-    bio: "Creating calm soundscapes for tranquil moments.",
-  },
-  {
-    id: "2",
-    name: "Luna Wave",
-    image: "/placeholder.svg",
-    genre: "Electronic",
-    bio: "Melodic electronic music inspired by nocturnal themes.",
-  },
-  {
-    id: "3",
-    name: "Pixel Pulse",
-    image: "/placeholder.svg",
-    genre: "Synth",
-    bio: "Retro-futuristic compositions with digital textures.",
-  },
-  {
-    id: "4",
-    name: "Coastal Mind",
-    image: "/placeholder.svg",
-    genre: "Lo-fi",
-    bio: "Relaxing beats inspired by coastal landscapes.",
-  },
-  {
-    id: "5",
-    name: "City Sounds",
-    image: "/placeholder.svg",
-    genre: "Jazz Fusion",
-    bio: "Merging traditional jazz with urban influences.",
-  },
-  {
-    id: "6",
-    name: "Astral Voices",
-    image: "/placeholder.svg",
-    genre: "Ethereal",
-    bio: "Vocal-centric compositions with otherworldly atmospheres.",
-  },
-];
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
 
@@ -152,17 +64,77 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolumeState] = useState(0.7);
   const [progress, setProgress] = useState(0);
-  const [songs] = useState<Song[]>(mockSongs);
-  const [artists] = useState<Artist[]>(mockArtists);
-  const [playlists, setPlaylists] = useState<Playlist[]>([
-    {
-      id: "default",
-      name: "Favorites",
-      songs: [mockSongs[0], mockSongs[2]],
-      createdAt: new Date(),
-    },
-  ]);
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [queue, setQueue] = useState<Song[]>([]);
+  const [trendingSongs, setTrendingSongs] = useState<Song[]>([]);
+  const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load initial data
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        setIsLoading(true);
+        // Get chart tracks for trending songs
+        const chartTracks = await api.getChartTracks();
+        setTrendingSongs(chartTracks);
+        setSongs(chartTracks);
+        
+        // Load stored playlists from localStorage
+        const storedPlaylists = localStorage.getItem('playlists');
+        if (storedPlaylists) {
+          const parsedPlaylists = JSON.parse(storedPlaylists);
+          // Convert string dates back to Date objects
+          const formattedPlaylists = parsedPlaylists.map((playlist: any) => ({
+            ...playlist,
+            createdAt: new Date(playlist.createdAt)
+          }));
+          setPlaylists(formattedPlaylists);
+        } else {
+          // Create default playlist if none exists
+          setPlaylists([
+            {
+              id: "default",
+              name: "Favorites",
+              songs: [],
+              createdAt: new Date(),
+              cover: "/placeholder.svg"
+            },
+          ]);
+        }
+        
+        // Load recently played from localStorage
+        const storedRecentlyPlayed = localStorage.getItem('recentlyPlayed');
+        if (storedRecentlyPlayed) {
+          setRecentlyPlayed(JSON.parse(storedRecentlyPlayed));
+        }
+        
+      } catch (error) {
+        console.error("Failed to load initial data:", error);
+        toast.error("Failed to load music data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, []);
+
+  // Save playlists to localStorage when they change
+  useEffect(() => {
+    if (playlists.length > 0) {
+      localStorage.setItem('playlists', JSON.stringify(playlists));
+    }
+  }, [playlists]);
+
+  // Save recently played to localStorage when it changes
+  useEffect(() => {
+    if (recentlyPlayed.length > 0) {
+      localStorage.setItem('recentlyPlayed', JSON.stringify(recentlyPlayed));
+    }
+  }, [recentlyPlayed]);
 
   // Simulate progress bar updating when a song is playing
   useEffect(() => {
@@ -191,13 +163,36 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentSong(song);
     setIsPlaying(true);
     setProgress(0);
-    // If queue is empty, add next 3 songs after this one to queue
+    
+    // Add to recently played
+    addToRecentlyPlayed(song);
+    
+    // If queue is empty, add recommendations
     if (queue.length === 0) {
-      const songIndex = songs.findIndex((s) => s.id === song.id);
-      const nextSongs = [...songs.slice(songIndex + 1, songIndex + 4)];
-      setQueue(nextSongs);
+      getRecommendationsForQueue(song.id);
     }
+    
     toast.success(`Now playing: ${song.title}`);
+  };
+
+  const getRecommendationsForQueue = async (songId: string) => {
+    try {
+      const recommendations = await api.getRecommendations(songId);
+      if (recommendations.length > 0) {
+        setQueue(recommendations.filter(s => s.id !== songId));
+      }
+    } catch (error) {
+      console.error("Error getting recommendations:", error);
+    }
+  };
+
+  const addToRecentlyPlayed = (song: Song) => {
+    setRecentlyPlayed(prev => {
+      // Remove if already exists
+      const filtered = prev.filter(s => s.id !== song.id);
+      // Add to beginning and limit to 20 songs
+      return [song, ...filtered].slice(0, 20);
+    });
   };
 
   const pauseSong = () => {
@@ -210,6 +205,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCurrentSong(nextSong);
       setProgress(0);
       setQueue(queue.slice(1));
+      addToRecentlyPlayed(nextSong);
     } else if (currentSong) {
       // Find next song in the list
       const currentIndex = songs.findIndex((s) => s.id === currentSong.id);
@@ -217,6 +213,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const nextSong = songs[currentIndex + 1];
         setCurrentSong(nextSong);
         setProgress(0);
+        addToRecentlyPlayed(nextSong);
       } else {
         // End of songs list
         setIsPlaying(false);
@@ -240,6 +237,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const prevSong = songs[currentIndex - 1];
         setCurrentSong(prevSong);
         setProgress(0);
+        addToRecentlyPlayed(prevSong);
       }
     }
   };
@@ -290,29 +288,68 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       name,
       songs: [],
       createdAt: new Date(),
+      cover: "/placeholder.svg"
     };
     setPlaylists([...playlists, newPlaylist]);
     toast.success(`Created playlist: ${name}`);
   };
 
-  const searchSongs = (query: string): Song[] => {
+  const searchSongs = async (query: string): Promise<Song[]> => {
     if (!query) return [];
-    const lowerQuery = query.toLowerCase();
-    return songs.filter(
-      (song) =>
-        song.title.toLowerCase().includes(lowerQuery) ||
-        song.artist.toLowerCase().includes(lowerQuery)
-    );
+    setIsLoading(true);
+    try {
+      const results = await api.searchTracks(query);
+      return results;
+    } catch (error) {
+      console.error("Error searching songs:", error);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const searchArtists = (query: string): Artist[] => {
+  const searchArtists = async (query: string): Promise<Artist[]> => {
     if (!query) return [];
-    const lowerQuery = query.toLowerCase();
-    return artists.filter(
-      (artist) =>
-        artist.name.toLowerCase().includes(lowerQuery) ||
-        artist.genre.toLowerCase().includes(lowerQuery)
-    );
+    // Due to limitations in the free Deezer API, we'll simulate artist search
+    // by extracting artists from track search results
+    setIsLoading(true);
+    try {
+      const tracks = await api.searchTracks(query);
+      
+      // Extract unique artists
+      const uniqueArtists = new Map<string, Artist>();
+      tracks.forEach(track => {
+        if (track.artistId && !uniqueArtists.has(track.artistId)) {
+          uniqueArtists.set(track.artistId, {
+            id: track.artistId,
+            name: track.artist,
+            image: track.albumCover, // Using album cover as artist image
+            genre: "Unknown",
+            bio: `Popular artist with hits like ${track.title}`,
+          });
+        }
+      });
+      
+      return Array.from(uniqueArtists.values());
+    } catch (error) {
+      console.error("Error searching artists:", error);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getArtistSongs = async (artistId: string): Promise<Song[]> => {
+    setIsLoading(true);
+    try {
+      const tracks = await api.getArtistTopTracks(artistId);
+      return tracks;
+    } catch (error) {
+      console.error("Error getting artist songs:", error);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -326,6 +363,9 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         artists,
         playlists,
         queue,
+        trendingSongs,
+        recentlyPlayed,
+        isLoading,
         playSong,
         pauseSong,
         nextSong,
@@ -336,6 +376,8 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         removeFromPlaylist,
         searchSongs,
         searchArtists,
+        getArtistSongs,
+        addToRecentlyPlayed,
       }}
     >
       {children}
