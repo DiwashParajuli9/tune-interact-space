@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MusicProvider } from "./contexts/MusicContext";
 import { MessageProvider } from "./contexts/MessageContext";
-import { SidebarProvider } from "./components/ui/sidebar";
 
 import Home from "./pages/Index";
 import Library from "./pages/Library";
@@ -24,21 +23,19 @@ const App = () => (
       <MessageProvider>
         <TooltipProvider>
           <Toaster />
-          <Sonner />
-          <SidebarProvider>
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Layout />}>
-                  <Route index element={<Home />} />
-                  <Route path="/library" element={<Library />} />
-                  <Route path="/artists" element={<Artists />} />
-                  <Route path="/messages" element={<Messages />} />
-                  <Route path="/playlists" element={<Playlists />} />
-                  <Route path="*" element={<NotFound />} />
-                </Route>
-              </Routes>
-            </BrowserRouter>
-          </SidebarProvider>
+          <Sonner position="top-center" />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Home />} />
+                <Route path="/library" element={<Library />} />
+                <Route path="/artists" element={<Artists />} />
+                <Route path="/messages" element={<Messages />} />
+                <Route path="/playlists" element={<Playlists />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
         </TooltipProvider>
       </MessageProvider>
     </MusicProvider>
