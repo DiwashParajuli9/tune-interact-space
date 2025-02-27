@@ -16,6 +16,7 @@ const Artists = () => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedArtist, setSelectedArtist] = useState<any | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Filter songs by artist
   const getArtistSongs = (artistName: string) => {
@@ -23,7 +24,7 @@ const Artists = () => {
   };
 
   // Handle search
-  const handleSearch = (query: string) => {
+  const handleSearch = async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
       setIsSearching(false);
@@ -31,8 +32,18 @@ const Artists = () => {
     }
 
     setIsSearching(true);
-    const results = searchArtists(query);
-    setSearchResults(results);
+    setIsLoading(true);
+    
+    try {
+      // Now properly await the Promise returned by searchArtists
+      const results = await searchArtists(query);
+      setSearchResults(results);
+    } catch (error) {
+      console.error("Error searching for artists:", error);
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Open artist dialog
@@ -75,7 +86,9 @@ const Artists = () => {
       {isSearching ? (
         <div className="animate-fade-in">
           <h2 className="text-xl font-display font-semibold mb-4">Search Results</h2>
-          {searchResults.length === 0 ? (
+          {isLoading ? (
+            <p className="text-muted-foreground">Searching...</p>
+          ) : searchResults.length === 0 ? (
             <p className="text-muted-foreground">No artists found</p>
           ) : (
             <div className={viewMode === "grid" ? 
