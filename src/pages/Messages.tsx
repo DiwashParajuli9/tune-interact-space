@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useMessages } from "@/contexts/MessageContext";
 import MessageCard from "@/components/MessageCard";
 import SearchInput from "@/components/SearchInput";
-import { Send, User, UserPlus, X } from "lucide-react";
+import { Send, User, UserPlus, X, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -357,7 +357,7 @@ const Messages = () => {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
               <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
-                <MessageCard size={24} className="text-muted-foreground" />
+                <MessageSquare size={24} className="text-muted-foreground" />
               </div>
               <h3 className="text-xl font-display font-medium mb-2">
                 No conversation selected

@@ -16,6 +16,7 @@ interface SongCardProps {
     title: string;
     artist: string;
     albumCover: string;
+    audioSrc: string;
     duration: number;
   };
   variant?: "grid" | "list";
