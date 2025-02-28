@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import * as api from "@/lib/api";
 
@@ -156,6 +156,23 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  
+  // Audio element reference
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Initialize audio element
+  useEffect(() => {
+    audioRef.current = new Audio();
+    audioRef.current.volume = volume;
+
+    // Clean up audio on unmount
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+    };
+  }, []);
 
   // Load initial data
   useEffect(() => {
@@ -186,7 +203,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         } catch (error) {
           console.error("Failed to load chart tracks:", error);
-          toast.error("Using sample tracks - Deezer API unavailable");
+          toast.error("Using sample tracks - API unavailable");
           setHasError(true);
         }
         
@@ -253,6 +270,55 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadInitialData();
   }, []);
 
+  // Handle audio playing state and volume changes
+  useEffect(() => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        const playPromise = audioRef.current.play();
+        // Handle play() promise to avoid DOMException
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.error("Audio play error:", error);
+            // Autoplay was prevented, set playing state to false
+            setIsPlaying(false);
+            toast.error("Audio playback was blocked", {
+              description: "Try clicking play again"
+            });
+          });
+        }
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [isPlaying]);
+  
+  // Update volume when it changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+    }
+  }, [volume]);
+
+  // Update audio source when current song changes
+  useEffect(() => {
+    if (currentSong && audioRef.current) {
+      audioRef.current.src = currentSong.audioSrc;
+      audioRef.current.load();
+      if (isPlaying) {
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.error("Audio play error:", error);
+            setIsPlaying(false);
+            toast.error("Couldn't play audio", {
+              description: "Try another song or check internet connection"
+            });
+          });
+        }
+      }
+    }
+  }, [currentSong]);
+
   // Save playlists to localStorage when they change
   useEffect(() => {
     if (playlists && playlists.length > 0) {
@@ -267,32 +333,38 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [recentlyPlayed]);
 
-  // Simulate progress bar updating when a song is playing
+  // Track audio progress
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (isPlaying && currentSong) {
-      interval = setInterval(() => {
-        setProgress((prevProgress) => {
-          const newProgress = prevProgress + 1;
-          if (newProgress >= currentSong.duration) {
-            // Song ended, play next song if available
-            nextSong();
-            return 0;
-          }
-          return newProgress;
-        });
-      }, 1000);
-    }
+    if (!audioRef.current) return;
+
+    const updateProgress = () => {
+      setProgress(audioRef.current?.currentTime || 0);
+    };
+
+    const handleSongEnd = () => {
+      nextSong();
+    };
+
+    audioRef.current.addEventListener('timeupdate', updateProgress);
+    audioRef.current.addEventListener('ended', handleSongEnd);
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (audioRef.current) {
+        audioRef.current.removeEventListener('timeupdate', updateProgress);
+        audioRef.current.removeEventListener('ended', handleSongEnd);
+      }
     };
-  }, [isPlaying, currentSong]);
+  }, [currentSong]);
 
   const playSong = (song: Song) => {
     if (!song) {
       toast.error("Cannot play invalid song");
+      return;
+    }
+    
+    // Check if audio source is valid
+    if (!song.audioSrc) {
+      toast.error("This song doesn't have a valid audio source");
       return;
     }
     
@@ -377,7 +449,8 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const prevSong = () => {
     if (currentSong) {
       // If progress is more than 3 seconds, restart song
-      if (progress > 3) {
+      if (audioRef.current && audioRef.current.currentTime > 3) {
+        audioRef.current.currentTime = 0;
         setProgress(0);
         return;
       }
@@ -483,7 +556,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const searchArtists = async (query: string): Promise<Artist[]> => {
     if (!query || query.trim() === '') return [];
     
-    // Due to limitations in the free Deezer API, we'll simulate artist search
+    // Due to limitations in the free API, we'll simulate artist search
     // by extracting artists from track search results
     setIsLoading(true);
     try {
