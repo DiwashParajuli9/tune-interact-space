@@ -4,15 +4,17 @@ import { useMusic } from "@/contexts/MusicContext";
 import { Link } from "react-router-dom";
 import SongCard from "@/components/SongCard";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, Disc3, Headphones, ListMusic, Sparkles, Volume2 } from "lucide-react";
+import { ArrowRight, Play, Disc3, Headphones, ListMusic, Sparkles, Volume2, Music2, Disc, Radio } from "lucide-react";
 import * as api from "@/lib/api";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Home = () => {
   const { recentlyPlayed, playlists, playSong, isLoading } = useMusic();
   const [trendingTracks, setTrendingTracks] = useState<any[]>([]);
   const [featuredArtists, setFeaturedArtists] = useState<any[]>([]);
+  const [genres, setGenres] = useState<any[]>([]);
   const [localLoading, setLocalLoading] = useState(true);
 
   useEffect(() => {
@@ -20,8 +22,8 @@ const Home = () => {
       try {
         setLocalLoading(true);
         
-        // Fetch trending tracks
-        const chartTracks = await api.getChartTracks(8);
+        // Fetch trending tracks from Deezer
+        const chartTracks = await api.getChartTracks(10);
         setTrendingTracks(chartTracks);
         
         // Create featured artists from tracks
@@ -36,9 +38,16 @@ const Home = () => {
           }
         });
         setFeaturedArtists(Array.from(artistMap.values()).slice(0, 6));
+        
+        // Fetch genres
+        const genreList = await api.getGenres();
+        setGenres(genreList.slice(0, 8));
+        
       } catch (error) {
         console.error("Error fetching data:", error);
-        toast.error("Failed to load discover data");
+        toast.error("Some content couldn't be loaded", {
+          description: "Using sample data instead"
+        });
       } finally {
         setLocalLoading(false);
       }
@@ -68,10 +77,10 @@ const Home = () => {
           {/* Left content */}
           <div className="flex-1">
             <h1 className="text-4xl md:text-5xl font-display font-bold mb-4 bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
-              Discover Your Next <br /> Favorite Track
+              Stream With Deezer <br /> Integration
             </h1>
             <p className="text-white/70 mb-6 max-w-md">
-              Explore millions of tracks, personalized playlists, and the latest releases. Stream anytime, anywhere.
+              Explore millions of tracks from Deezer, personalized playlists, and the latest releases. Stream anytime, anywhere.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button 
@@ -80,11 +89,12 @@ const Home = () => {
                 onClick={() => {
                   if (trendingTracks.length > 0) {
                     playSong(trendingTracks[0]);
+                    toast.success(`Now playing: ${trendingTracks[0].title}`);
                   }
                 }}
               >
                 <Play size={18} className="mr-2" />
-                Play Now
+                Play Top Track
               </Button>
               <Link to="/library">
                 <Button 
@@ -117,7 +127,7 @@ const Home = () => {
             <h2 className="text-2xl font-display font-bold flex items-center gap-2">
               <Sparkles size={20} className="text-indigo-400" />
               <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-                Trending Now
+                Trending From Deezer
               </span>
             </h2>
             <Link to="/library" className="text-sm text-white/70 hover:text-white flex items-center gap-1">
@@ -127,9 +137,13 @@ const Home = () => {
           </div>
           
           {localLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
-              {Array(8).fill(0).map((_, i) => (
-                <div key={i} className="aspect-square animate-pulse bg-white/5 rounded-lg" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {Array(5).fill(0).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="aspect-square rounded-lg bg-white/5" />
+                  <Skeleton className="h-4 w-3/4 bg-white/5" />
+                  <Skeleton className="h-3 w-1/2 bg-white/5" />
+                </div>
               ))}
             </div>
           ) : (
@@ -145,12 +159,58 @@ const Home = () => {
           )}
         </section>
         
-        {/* Recently played section */}
-        <section className={`p-6 rounded-xl bg-gradient-to-r ${getSectionGradient(0)} border border-white/5`}>
+        {/* Music Genres section */}
+        <section className={`p-6 rounded-xl bg-gradient-to-r ${getSectionGradient(1)} border border-white/5`}>
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-2xl font-display font-bold flex items-center gap-2">
-              <Disc3 size={20} className="text-rose-400" />
+              <Radio size={20} className="text-rose-400" />
               <span className="bg-gradient-to-r from-rose-400 to-orange-400 bg-clip-text text-transparent">
+                Music Genres
+              </span>
+            </h2>
+          </div>
+          
+          {localLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {Array(4).fill(0).map((_, i) => (
+                <Skeleton key={i} className="h-24 rounded-lg bg-white/5" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {genres.map(genre => (
+                <Link 
+                  key={genre.id} 
+                  to={`/library?genre=${genre.id}`}
+                  className="relative h-24 rounded-lg overflow-hidden group"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-black/40 group-hover:from-black/50 group-hover:to-black/30 transition-all duration-300 z-10"></div>
+                  {genre.picture ? (
+                    <img 
+                      src={genre.picture} 
+                      alt={genre.name} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-rose-500/30 to-orange-500/30 flex items-center justify-center">
+                      <Music2 size={30} className="text-white/70" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 flex items-center justify-center z-20">
+                    <h3 className="text-lg font-bold text-white">{genre.name}</h3>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+        
+        {/* Recently played section */}
+        <section>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-2xl font-display font-bold flex items-center gap-2">
+              <Disc3 size={20} className="text-cyan-400" />
+              <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
                 Recently Played
               </span>
             </h2>
@@ -161,9 +221,13 @@ const Home = () => {
           </div>
           
           {isLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
-              {Array(6).fill(0).map((_, i) => (
-                <div key={i} className="aspect-square animate-pulse bg-white/5 rounded-lg" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {Array(5).fill(0).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="aspect-square rounded-lg bg-white/5" />
+                  <Skeleton className="h-4 w-3/4 bg-white/5" />
+                  <Skeleton className="h-3 w-1/2 bg-white/5" />
+                </div>
               ))}
             </div>
           ) : recentlyPlayed.length > 0 ? (
@@ -177,7 +241,7 @@ const Home = () => {
               </div>
             </ScrollArea>
           ) : (
-            <div className="text-center py-8">
+            <div className="text-center py-8 glass-card">
               <div className="w-16 h-16 rounded-full bg-white/5 mx-auto flex items-center justify-center mb-4">
                 <Volume2 size={24} className="text-white/70" />
               </div>
@@ -197,12 +261,12 @@ const Home = () => {
         </section>
         
         {/* Featured artists section */}
-        <section>
+        <section className={`p-6 rounded-xl bg-gradient-to-r ${getSectionGradient(2)} border border-white/5`}>
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-2xl font-display font-bold flex items-center gap-2">
-              <Headphones size={20} className="text-cyan-400" />
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                Featured Artists
+              <Headphones size={20} className="text-emerald-400" />
+              <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                Popular Artists on Deezer
               </span>
             </h2>
             <Link to="/artists" className="text-sm text-white/70 hover:text-white flex items-center gap-1">
@@ -215,9 +279,9 @@ const Home = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {Array(6).fill(0).map((_, i) => (
                 <div key={i} className="animate-pulse">
-                  <div className="aspect-square bg-white/5 rounded-full mb-3" />
-                  <div className="h-4 bg-white/5 rounded w-3/4 mx-auto mb-2" />
-                  <div className="h-3 bg-white/5 rounded w-1/2 mx-auto" />
+                  <Skeleton className="aspect-square rounded-full bg-white/5 mb-3" />
+                  <Skeleton className="h-4 w-3/4 mx-auto bg-white/5 mb-2" />
+                  <Skeleton className="h-3 w-1/2 mx-auto bg-white/5" />
                 </div>
               ))}
             </div>
@@ -241,11 +305,11 @@ const Home = () => {
         </section>
         
         {/* Your playlists section */}
-        <section className={`p-6 rounded-xl bg-gradient-to-r ${getSectionGradient(2)} border border-white/5`}>
+        <section>
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-2xl font-display font-bold flex items-center gap-2">
-              <ListMusic size={20} className="text-emerald-400" />
-              <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+              <ListMusic size={20} className="text-violet-400" />
+              <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
                 Your Playlists
               </span>
             </h2>
@@ -258,13 +322,7 @@ const Home = () => {
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {Array(3).fill(0).map((_, i) => (
-                <div key={i} className="animate-pulse flex items-center gap-4 p-4 rounded-lg bg-white/5">
-                  <div className="aspect-square h-16 w-16 bg-white/10 rounded-md" />
-                  <div className="flex-1">
-                    <div className="h-4 bg-white/10 rounded w-3/4 mb-2" />
-                    <div className="h-3 bg-white/10 rounded w-1/2" />
-                  </div>
-                </div>
+                <Skeleton key={i} className="h-24 rounded-lg bg-white/5" />
               ))}
             </div>
           ) : playlists.length > 0 ? (
@@ -310,7 +368,7 @@ const Home = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
+            <div className="text-center py-8 glass-card">
               <div className="w-16 h-16 rounded-full bg-white/5 mx-auto flex items-center justify-center mb-4">
                 <ListMusic size={24} className="text-white/70" />
               </div>
@@ -320,13 +378,41 @@ const Home = () => {
               </p>
               <Link to="/playlists">
                 <Button 
-                  className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0"
+                  className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white border-0"
                 >
                   Create Your First Playlist
                 </Button>
               </Link>
             </div>
           )}
+        </section>
+        
+        {/* About Deezer integration */}
+        <section className="p-6 rounded-xl bg-gradient-to-r from-black/40 to-black/60 border border-white/5">
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="md:w-1/3 flex justify-center">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                <Disc size={40} className="text-white" />
+              </div>
+            </div>
+            <div className="md:w-2/3">
+              <h2 className="text-2xl font-display font-bold mb-2 bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
+                Powered by Deezer API
+              </h2>
+              <p className="text-white/70 mb-4">
+                Enjoy millions of tracks, artists, and playlists from Deezer's vast music catalog. 
+                This streaming experience brings you the latest and most popular music directly through 
+                Deezer's extensive library.
+              </p>
+              <Button 
+                variant="outline"
+                className="bg-white/5 text-white border-white/10 hover:bg-white/10"
+                onClick={() => window.open("https://developers.deezer.com/", "_blank")}
+              >
+                Learn More About Deezer API
+              </Button>
+            </div>
+          </div>
         </section>
       </div>
     </div>
