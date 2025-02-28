@@ -10,6 +10,97 @@ import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Sample tracks for fallback
+const SAMPLE_TRACKS = [
+  {
+    id: "1",
+    title: "Blinding Lights",
+    artist: "The Weeknd",
+    albumCover: "https://e-cdns-images.dzcdn.net/images/cover/ab01b96137bd9df9a94e1c608e1004f4/500x500-000000-80-0-0.jpg",
+    audioSrc: "https://cdns-preview-0.dzcdn.net/stream/c-0cb3c26f5c0be83042fecb0b925f6816-5.mp3",
+    duration: 203,
+    artistId: "101",
+    albumId: "1001",
+  },
+  {
+    id: "2",
+    title: "Shape of You",
+    artist: "Ed Sheeran",
+    albumCover: "https://e-cdns-images.dzcdn.net/images/cover/1d4e83b147ce06a7452e91b86d953506/500x500-000000-80-0-0.jpg",
+    audioSrc: "https://cdns-preview-4.dzcdn.net/stream/c-4411a1e2b3db5c8d826af7a7966d4018-3.mp3",
+    duration: 234,
+    artistId: "102",
+    albumId: "1002",
+  },
+  {
+    id: "3",
+    title: "Someone You Loved",
+    artist: "Lewis Capaldi",
+    albumCover: "https://e-cdns-images.dzcdn.net/images/cover/9dac88e7c6a17da0c44c6e7ba435f9c5/500x500-000000-80-0-0.jpg",
+    audioSrc: "https://cdns-preview-b.dzcdn.net/stream/c-b7aafae95bd0d9dc4d41f7f6164ebef2-4.mp3",
+    duration: 182,
+    artistId: "103",
+    albumId: "1003",
+  },
+  {
+    id: "4",
+    title: "Bad Guy",
+    artist: "Billie Eilish",
+    albumCover: "https://e-cdns-images.dzcdn.net/images/cover/f691547698aa8151589c5ca4cc066523/500x500-000000-80-0-0.jpg",
+    audioSrc: "https://cdns-preview-2.dzcdn.net/stream/c-2fb3d5fb5f0b6400a11529275dfdc427-6.mp3",
+    duration: 194,
+    artistId: "104",
+    albumId: "1004",
+  },
+  {
+    id: "5",
+    title: "Dance Monkey",
+    artist: "Tones and I",
+    albumCover: "https://e-cdns-images.dzcdn.net/images/cover/05e11096011ded0561b91746d649ab40/500x500-000000-80-0-0.jpg",
+    audioSrc: "https://cdns-preview-a.dzcdn.net/stream/c-a3d2860f9093a4dfc69c73f5245814e2-3.mp3",
+    duration: 210,
+    artistId: "105",
+    albumId: "1005",
+  },
+  {
+    id: "6",
+    title: "Don't Start Now",
+    artist: "Dua Lipa",
+    albumCover: "https://e-cdns-images.dzcdn.net/images/cover/9b142ff084a95a893f1b6dcec2ab3456/500x500-000000-80-0-0.jpg",
+    audioSrc: "https://cdns-preview-0.dzcdn.net/stream/c-0c8199b3d653be9ef6ea4d7f08e3aef2-4.mp3",
+    duration: 183,
+    artistId: "106",
+    albumId: "1006",
+  },
+  {
+    id: "7",
+    title: "Memories",
+    artist: "Maroon 5",
+    albumCover: "https://e-cdns-images.dzcdn.net/images/cover/edd1708bbd595f5aa7be0bd9a9b7b0af/500x500-000000-80-0-0.jpg",
+    audioSrc: "https://cdns-preview-f.dzcdn.net/stream/c-f8f69d54a185d6f9153147f21c493eb0-3.mp3",
+    duration: 189,
+    artistId: "107",
+    albumId: "1007",
+  },
+  {
+    id: "8",
+    title: "Circles",
+    artist: "Post Malone",
+    albumCover: "https://e-cdns-images.dzcdn.net/images/cover/7c8bd7c778e0fc9649bffc7a87e2ed16/500x500-000000-80-0-0.jpg",
+    audioSrc: "https://cdns-preview-a.dzcdn.net/stream/c-a9f39694b3bf9578a5ff4ae156bbc68a-4.mp3",
+    duration: 215,
+    artistId: "108",
+    albumId: "1008",
+  }
+];
+
+const DEFAULT_GENRES = [
+  { id: "1", name: "Pop", picture: "https://e-cdns-images.dzcdn.net/images/misc/db7a604d9e7634a67d45cfc86b7f4866/500x500-000000-80-0-0.jpg" },
+  { id: "2", name: "Rock", picture: "https://e-cdns-images.dzcdn.net/images/misc/b36ca681667f48421a733aab7a17fc17/500x500-000000-80-0-0.jpg" },
+  { id: "3", name: "Hip Hop", picture: "https://e-cdns-images.dzcdn.net/images/misc/4bcd469d3b555cc9999980325d172ae5/500x500-000000-80-0-0.jpg" },
+  { id: "4", name: "Electronic", picture: "https://e-cdns-images.dzcdn.net/images/misc/f3bc07e7a4e03a701c55f386c55e6150/500x500-000000-80-0-0.jpg" }
+];
+
 const Home = () => {
   const { recentlyPlayed, playlists, playSong, isLoading } = useMusic();
   const [trendingTracks, setTrendingTracks] = useState<any[]>([]);
@@ -23,7 +114,17 @@ const Home = () => {
         setLocalLoading(true);
         
         // Fetch trending tracks from Deezer
-        const chartTracks = await api.getChartTracks(10);
+        let chartTracks;
+        try {
+          chartTracks = await api.getChartTracks(10);
+        } catch (error) {
+          console.error("Failed to fetch trending tracks:", error);
+          chartTracks = SAMPLE_TRACKS;
+          toast.error("Using sample trending tracks", {
+            description: "Deezer API is currently unavailable"
+          });
+        }
+        
         setTrendingTracks(chartTracks);
         
         // Create featured artists from tracks
@@ -40,13 +141,40 @@ const Home = () => {
         setFeaturedArtists(Array.from(artistMap.values()).slice(0, 6));
         
         // Fetch genres
-        const genreList = await api.getGenres();
-        setGenres(genreList.slice(0, 8));
+        try {
+          const genreList = await api.getGenres();
+          setGenres(genreList.slice(0, 8));
+        } catch (error) {
+          console.error("Failed to fetch genres:", error);
+          setGenres(DEFAULT_GENRES);
+          toast.error("Using default genres", {
+            description: "Couldn't load genre data from Deezer"
+          });
+        }
         
       } catch (error) {
         console.error("Error fetching data:", error);
-        toast.error("Some content couldn't be loaded", {
-          description: "Using sample data instead"
+        // Set fallback data
+        setTrendingTracks(SAMPLE_TRACKS);
+        
+        // Create featured artists from sample tracks
+        const artistMap = new Map();
+        SAMPLE_TRACKS.forEach(track => {
+          if (track.artistId && !artistMap.has(track.artistId)) {
+            artistMap.set(track.artistId, {
+              id: track.artistId,
+              name: track.artist,
+              image: track.albumCover
+            });
+          }
+        });
+        setFeaturedArtists(Array.from(artistMap.values()).slice(0, 6));
+        
+        // Set default genres
+        setGenres(DEFAULT_GENRES);
+        
+        toast.error("Using sample data", {
+          description: "Couldn't load data from Deezer API"
         });
       } finally {
         setLocalLoading(false);
@@ -87,11 +215,14 @@ const Home = () => {
                 size="lg"
                 className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 border-0 text-white"
                 onClick={() => {
-                  if (trendingTracks.length > 0) {
+                  if (trendingTracks && trendingTracks.length > 0) {
                     playSong(trendingTracks[0]);
                     toast.success(`Now playing: ${trendingTracks[0].title}`);
+                  } else {
+                    toast.error("No tracks available to play");
                   }
                 }}
+                disabled={!trendingTracks || trendingTracks.length === 0}
               >
                 <Play size={18} className="mr-2" />
                 Play Top Track
@@ -146,7 +277,7 @@ const Home = () => {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : trendingTracks && trendingTracks.length > 0 ? (
             <ScrollArea className="pb-4">
               <div className="flex space-x-4">
                 {trendingTracks.map(song => (
@@ -156,6 +287,22 @@ const Home = () => {
                 ))}
               </div>
             </ScrollArea>
+          ) : (
+            <div className="text-center py-8 glass-card">
+              <div className="w-16 h-16 rounded-full bg-white/5 mx-auto flex items-center justify-center mb-4">
+                <Sparkles size={24} className="text-white/70" />
+              </div>
+              <h3 className="text-lg font-display font-medium mb-2">No trending tracks available</h3>
+              <p className="text-white/70 max-w-md mx-auto mb-6">
+                We couldn't load trending tracks from Deezer at the moment. Please try again later.
+              </p>
+              <Button 
+                onClick={() => window.location.reload()}
+                className="bg-white/10 text-white hover:bg-white/20 border-0"
+              >
+                Refresh Page
+              </Button>
+            </div>
           )}
         </section>
         
@@ -176,7 +323,7 @@ const Home = () => {
                 <Skeleton key={i} className="h-24 rounded-lg bg-white/5" />
               ))}
             </div>
-          ) : (
+          ) : genres && genres.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {genres.map(genre => (
                 <Link 
@@ -201,6 +348,22 @@ const Home = () => {
                   </div>
                 </Link>
               ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 glass-card">
+              <div className="w-16 h-16 rounded-full bg-white/5 mx-auto flex items-center justify-center mb-4">
+                <Radio size={24} className="text-white/70" />
+              </div>
+              <h3 className="text-lg font-display font-medium mb-2">No genres available</h3>
+              <p className="text-white/70 max-w-md mx-auto mb-6">
+                We couldn't load music genres at the moment. Please try again later.
+              </p>
+              <Button 
+                onClick={() => window.location.reload()}
+                className="bg-white/10 text-white hover:bg-white/20 border-0"
+              >
+                Refresh Page
+              </Button>
             </div>
           )}
         </section>
@@ -230,7 +393,7 @@ const Home = () => {
                 </div>
               ))}
             </div>
-          ) : recentlyPlayed.length > 0 ? (
+          ) : recentlyPlayed && recentlyPlayed.length > 0 ? (
             <ScrollArea className="pb-4">
               <div className="flex space-x-4">
                 {recentlyPlayed.slice(0, 10).map((song, index) => (
@@ -285,7 +448,7 @@ const Home = () => {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : featuredArtists && featuredArtists.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
               {featuredArtists.map(artist => (
                 <Link key={artist.id} to={`/artists?id=${artist.id}`} className="group">
@@ -300,6 +463,22 @@ const Home = () => {
                   <p className="text-center text-sm text-white/50">Artist</p>
                 </Link>
               ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 glass-card">
+              <div className="w-16 h-16 rounded-full bg-white/5 mx-auto flex items-center justify-center mb-4">
+                <Headphones size={24} className="text-white/70" />
+              </div>
+              <h3 className="text-lg font-display font-medium mb-2">No artists available</h3>
+              <p className="text-white/70 max-w-md mx-auto mb-6">
+                We couldn't load featured artists at the moment. Please try again later.
+              </p>
+              <Button 
+                onClick={() => window.location.reload()}
+                className="bg-white/10 text-white hover:bg-white/20 border-0"
+              >
+                Refresh Page
+              </Button>
             </div>
           )}
         </section>
@@ -325,7 +504,7 @@ const Home = () => {
                 <Skeleton key={i} className="h-24 rounded-lg bg-white/5" />
               ))}
             </div>
-          ) : playlists.length > 0 ? (
+          ) : playlists && playlists.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {playlists.slice(0, 3).map(playlist => (
                 <Link 
@@ -334,7 +513,7 @@ const Home = () => {
                   className="flex items-center gap-4 p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group"
                 >
                   <div className="h-16 w-16 rounded-md overflow-hidden bg-gradient-to-br from-purple-500/30 to-indigo-500/30 flex-shrink-0">
-                    {playlist.songs.length > 0 ? (
+                    {playlist.songs && playlist.songs.length > 0 ? (
                       <div className="grid grid-cols-2 grid-rows-2 h-full w-full">
                         {playlist.songs.slice(0, 4).map((song, index) => (
                           <div key={song.id} className="overflow-hidden">
@@ -361,7 +540,7 @@ const Home = () => {
                   <div>
                     <h3 className="font-medium group-hover:text-white transition-colors">{playlist.name}</h3>
                     <p className="text-sm text-white/50">
-                      {playlist.songs.length} {playlist.songs.length === 1 ? 'song' : 'songs'}
+                      {playlist.songs ? playlist.songs.length : 0} {playlist.songs && playlist.songs.length === 1 ? 'song' : 'songs'}
                     </p>
                   </div>
                 </Link>
