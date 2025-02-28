@@ -148,11 +148,11 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolumeState] = useState(0.7);
   const [progress, setProgress] = useState(0);
-  const [songs, setSongs] = useState<Song[]>([]);
+  const [songs, setSongs] = useState<Song[]>(SAMPLE_TRACKS); // Initialize with sample tracks immediately
   const [artists, setArtists] = useState<Artist[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [queue, setQueue] = useState<Song[]>([]);
-  const [trendingSongs, setTrendingSongs] = useState<Song[]>([]);
+  const [trendingSongs, setTrendingSongs] = useState<Song[]>(SAMPLE_TRACKS); // Initialize with sample tracks immediately
   const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -164,13 +164,28 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsLoading(true);
         setHasError(false);
         
+        // Create default playlist if none exists - do this first
+        let initialPlaylists: Playlist[] = [
+          {
+            id: "default",
+            name: "Favorites",
+            songs: [],
+            createdAt: new Date(),
+            cover: "/placeholder.svg"
+          },
+        ];
+        
         // Get chart tracks for trending songs
-        let chartTracks;
+        let chartTracks = SAMPLE_TRACKS; // Start with sample tracks
+        
         try {
-          chartTracks = await api.getChartTracks();
+          const apiTracks = await api.getChartTracks();
+          if (apiTracks && apiTracks.length > 0) {
+            chartTracks = apiTracks;
+            console.log("Successfully loaded chart tracks from API");
+          }
         } catch (error) {
           console.error("Failed to load chart tracks:", error);
-          chartTracks = SAMPLE_TRACKS;
           toast.error("Using sample tracks - Deezer API unavailable");
           setHasError(true);
         }
@@ -191,29 +206,13 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setPlaylists(formattedPlaylists);
           } catch (parseError) {
             console.error("Failed to parse playlists:", parseError);
-            // Create default playlist if parsing fails
-            setPlaylists([
-              {
-                id: "default",
-                name: "Favorites",
-                songs: [],
-                createdAt: new Date(),
-                cover: "/placeholder.svg"
-              },
-            ]);
+            // Use default playlist if parsing fails
+            setPlaylists(initialPlaylists);
             toast.error("Failed to load playlists, using default");
           }
         } else {
-          // Create default playlist if none exists
-          setPlaylists([
-            {
-              id: "default",
-              name: "Favorites",
-              songs: [],
-              createdAt: new Date(),
-              cover: "/placeholder.svg"
-            },
-          ]);
+          // Use default playlist if none exists
+          setPlaylists(initialPlaylists);
         }
         
         // Load recently played from localStorage
@@ -230,9 +229,22 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch (error) {
         console.error("Failed to load initial data:", error);
         toast.error("Failed to load music data - using fallbacks");
+        
+        // Ensure we always have some data even if everything fails
         setTrendingSongs(SAMPLE_TRACKS);
         setSongs(SAMPLE_TRACKS);
         setHasError(true);
+        
+        // Still create a default playlist
+        setPlaylists([
+          {
+            id: "default",
+            name: "Favorites",
+            songs: [],
+            createdAt: new Date(),
+            cover: "/placeholder.svg"
+          },
+        ]);
       } finally {
         setIsLoading(false);
       }
@@ -243,14 +255,14 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Save playlists to localStorage when they change
   useEffect(() => {
-    if (playlists.length > 0) {
+    if (playlists && playlists.length > 0) {
       localStorage.setItem('playlists', JSON.stringify(playlists));
     }
   }, [playlists]);
 
   // Save recently played to localStorage when it changes
   useEffect(() => {
-    if (recentlyPlayed.length > 0) {
+    if (recentlyPlayed && recentlyPlayed.length > 0) {
       localStorage.setItem('recentlyPlayed', JSON.stringify(recentlyPlayed));
     }
   }, [recentlyPlayed]);
@@ -279,6 +291,11 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [isPlaying, currentSong]);
 
   const playSong = (song: Song) => {
+    if (!song) {
+      toast.error("Cannot play invalid song");
+      return;
+    }
+    
     setCurrentSong(song);
     setIsPlaying(true);
     setProgress(0);
@@ -295,10 +312,16 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const getRecommendationsForQueue = async (songId: string) => {
+    if (!songId) return;
+    
     try {
       const recommendations = await api.getRecommendations(songId);
-      if (recommendations.length > 0) {
+      if (recommendations && recommendations.length > 0) {
         setQueue(recommendations.filter(s => s.id !== songId));
+      } else {
+        // Use other songs from sample tracks as recommendations if API returns empty
+        const fallbackRecommendations = SAMPLE_TRACKS.filter(s => s.id !== songId);
+        setQueue(fallbackRecommendations);
       }
     } catch (error) {
       console.error("Error getting recommendations:", error);
@@ -309,9 +332,15 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addToRecentlyPlayed = (song: Song) => {
+    if (!song) return;
+    
     setRecentlyPlayed(prev => {
+      // Handle the case where prev might be null or undefined
+      const safeList = prev || [];
+      
       // Remove if already exists
-      const filtered = prev.filter(s => s.id !== song.id);
+      const filtered = safeList.filter(s => s && s.id !== song.id);
+      
       // Add to beginning and limit to 20 songs
       return [song, ...filtered].slice(0, 20);
     });
@@ -322,16 +351,16 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const nextSong = () => {
-    if (queue.length > 0) {
+    if (queue && queue.length > 0) {
       const nextSong = queue[0];
       setCurrentSong(nextSong);
       setProgress(0);
       setQueue(queue.slice(1));
       addToRecentlyPlayed(nextSong);
-    } else if (currentSong) {
+    } else if (currentSong && songs && songs.length > 0) {
       // Find next song in the list
-      const currentIndex = songs.findIndex((s) => s.id === currentSong.id);
-      if (currentIndex < songs.length - 1) {
+      const currentIndex = songs.findIndex((s) => s && s.id === currentSong.id);
+      if (currentIndex >= 0 && currentIndex < songs.length - 1) {
         const nextSong = songs[currentIndex + 1];
         setCurrentSong(nextSong);
         setProgress(0);
@@ -354,7 +383,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       
       // Find previous song in the list
-      const currentIndex = songs.findIndex((s) => s.id === currentSong.id);
+      const currentIndex = songs.findIndex((s) => s && s.id === currentSong.id);
       if (currentIndex > 0) {
         const prevSong = songs[currentIndex - 1];
         setCurrentSong(prevSong);
@@ -369,12 +398,17 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addToPlaylist = (playlistId: string, songId: string) => {
-    const playlistIndex = playlists.findIndex((p) => p.id === playlistId);
+    if (!playlistId || !songId) {
+      toast.error("Invalid playlist or song");
+      return;
+    }
+    
+    const playlistIndex = playlists.findIndex((p) => p && p.id === playlistId);
     if (playlistIndex !== -1) {
-      const song = songs.find((s) => s.id === songId);
+      const song = songs.find((s) => s && s.id === songId);
       if (song) {
         // Check if song already exists in playlist
-        const songExists = playlists[playlistIndex].songs.some((s) => s.id === songId);
+        const songExists = playlists[playlistIndex].songs.some((s) => s && s.id === songId);
         if (songExists) {
           toast.error("Song already in playlist");
           return;
@@ -392,12 +426,14 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const removeFromPlaylist = (playlistId: string, songId: string) => {
-    const playlistIndex = playlists.findIndex((p) => p.id === playlistId);
+    if (!playlistId || !songId) return;
+    
+    const playlistIndex = playlists.findIndex((p) => p && p.id === playlistId);
     if (playlistIndex !== -1) {
       const updatedPlaylists = [...playlists];
       updatedPlaylists[playlistIndex] = {
         ...updatedPlaylists[playlistIndex],
-        songs: updatedPlaylists[playlistIndex].songs.filter((s) => s.id !== songId),
+        songs: updatedPlaylists[playlistIndex].songs.filter((s) => s && s.id !== songId),
       };
       setPlaylists(updatedPlaylists);
       toast.success("Removed from playlist");
@@ -405,6 +441,11 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const createPlaylist = (name: string) => {
+    if (!name || name.trim() === '') {
+      toast.error("Playlist name cannot be empty");
+      return;
+    }
+    
     const newPlaylist: Playlist = {
       id: `playlist-${Date.now()}`,
       name,
@@ -417,11 +458,15 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const searchSongs = async (query: string): Promise<Song[]> => {
-    if (!query) return [];
+    if (!query || query.trim() === '') return SAMPLE_TRACKS;
+    
     setIsLoading(true);
     try {
       const results = await api.searchTracks(query);
-      return results;
+      return results && results.length > 0 ? results : SAMPLE_TRACKS.filter(track => 
+        track.title.toLowerCase().includes(query.toLowerCase()) || 
+        track.artist.toLowerCase().includes(query.toLowerCase())
+      );
     } catch (error) {
       console.error("Error searching songs:", error);
       toast.error("Search API failed, using sample data");
@@ -436,12 +481,32 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const searchArtists = async (query: string): Promise<Artist[]> => {
-    if (!query) return [];
+    if (!query || query.trim() === '') return [];
+    
     // Due to limitations in the free Deezer API, we'll simulate artist search
     // by extracting artists from track search results
     setIsLoading(true);
     try {
       const tracks = await api.searchTracks(query);
+      
+      if (!tracks || tracks.length === 0) {
+        // Create sample artists from sample tracks if API fails
+        const uniqueArtists = new Map<string, Artist>();
+        SAMPLE_TRACKS.filter(track => 
+          track.artist.toLowerCase().includes(query.toLowerCase())
+        ).forEach(track => {
+          if (track.artistId && !uniqueArtists.has(track.artistId)) {
+            uniqueArtists.set(track.artistId, {
+              id: track.artistId,
+              name: track.artist,
+              image: track.albumCover,
+              genre: "Unknown",
+              bio: `Popular artist with hits like ${track.title}`,
+            });
+          }
+        });
+        return Array.from(uniqueArtists.values());
+      }
       
       // Extract unique artists
       const uniqueArtists = new Map<string, Artist>();
@@ -482,10 +547,12 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const getArtistSongs = async (artistId: string): Promise<Song[]> => {
+    if (!artistId) return [];
+    
     setIsLoading(true);
     try {
       const tracks = await api.getArtistTopTracks(artistId);
-      return tracks;
+      return tracks && tracks.length > 0 ? tracks : SAMPLE_TRACKS.filter(track => track.artistId === artistId);
     } catch (error) {
       console.error("Error getting artist songs:", error);
       toast.error("Failed to load artist tracks, using samples");

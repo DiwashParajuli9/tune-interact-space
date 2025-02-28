@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 
 // Types for Deezer API responses
@@ -92,9 +93,13 @@ export interface DeezerPlaylist {
   type: string;
 }
 
-// We'll use a proxy to bypass CORS issues
-// Instead of cors-anywhere (which requires demo activation), we'll use another approach
-const PROXY_URL = "https://api.allorigins.win/raw?url=";
+// Since AllOrigins is experiencing timeouts, let's use a different proxy service
+// or go directly to the Deezer API when possible with multiple fallbacks
+const CORS_PROXIES = [
+  "https://api.allorigins.win/raw?url=",
+  "https://corsproxy.io/?",
+  "https://proxy.cors.sh/",
+];
 const BASE_URL = "https://api.deezer.com";
 
 // Sample data for fallback when API has issues
@@ -226,6 +231,14 @@ const SAMPLE_ARTISTS = [
   }
 ];
 
+// Default genres for fallback
+export const DEFAULT_GENRES = [
+  { id: "1", name: "Pop", picture: "https://e-cdns-images.dzcdn.net/images/misc/db7a604d9e7634a67d45cfc86b7f4866/500x500-000000-80-0-0.jpg" },
+  { id: "2", name: "Rock", picture: "https://e-cdns-images.dzcdn.net/images/misc/b36ca681667f48421a733aab7a17fc17/500x500-000000-80-0-0.jpg" },
+  { id: "3", name: "Hip Hop", picture: "https://e-cdns-images.dzcdn.net/images/misc/4bcd469d3b555cc9999980325d172ae5/500x500-000000-80-0-0.jpg" },
+  { id: "4", name: "Electronic", picture: "https://e-cdns-images.dzcdn.net/images/misc/f3bc07e7a4e03a701c55f386c55e6150/500x500-000000-80-0-0.jpg" }
+];
+
 // Function to transform Deezer track to our Song format
 export const transformTrackToSong = (track: DeezerTrack) => {
   return {
@@ -251,11 +264,22 @@ export const transformArtistToArtist = (artist: DeezerArtistDetails) => {
   };
 };
 
-// Helper function to fetch from Deezer API with proxy
-const fetchFromDeezer = async (endpoint: string) => {
+// Helper function to fetch from Deezer API with proxy and retries
+const fetchFromDeezer = async (endpoint: string, retryCount = 0) => {
+  // Set a timeout to avoid hanging requests
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5-second timeout
+  
   try {
-    console.log(`Fetching from Deezer: ${endpoint}`);
-    const response = await fetch(`${PROXY_URL}${encodeURIComponent(`${BASE_URL}${endpoint}`)}`);
+    const proxyIndex = retryCount % CORS_PROXIES.length;
+    const proxyUrl = CORS_PROXIES[proxyIndex];
+    console.log(`Fetching from Deezer (attempt ${retryCount + 1}): ${endpoint} using proxy ${proxyUrl}`);
+    
+    const response = await fetch(`${proxyUrl}${encodeURIComponent(`${BASE_URL}${endpoint}`)}`, {
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`API responded with status: ${response.status}`);
@@ -263,15 +287,34 @@ const fetchFromDeezer = async (endpoint: string) => {
     
     return await response.json();
   } catch (error) {
+    clearTimeout(timeoutId);
+    
     console.error(`Error fetching from Deezer (${endpoint}):`, error);
-    throw error;
+    
+    // If we've tried all proxies and still failed, throw the error
+    if (retryCount >= CORS_PROXIES.length - 1) {
+      throw error;
+    }
+    
+    // Try the next proxy
+    return fetchFromDeezer(endpoint, retryCount + 1);
   }
 };
 
 // Search for tracks
 export const searchTracks = async (query: string) => {
+  if (!query || query.trim() === '') {
+    return SAMPLE_TRACKS;
+  }
+  
   try {
     const data = await fetchFromDeezer(`/search?q=${encodeURIComponent(query)}`);
+    if (!data || !data.data || !Array.isArray(data.data) || data.data.length === 0) {
+      return SAMPLE_TRACKS.filter(track => 
+        track.title.toLowerCase().includes(query.toLowerCase()) || 
+        track.artist.toLowerCase().includes(query.toLowerCase())
+      );
+    }
     return data.data.map(transformTrackToSong);
   } catch (error) {
     console.error("Error searching tracks:", error);
@@ -314,6 +357,9 @@ export const getArtist = async (artistId: string) => {
 export const getArtistTopTracks = async (artistId: string) => {
   try {
     const data = await fetchFromDeezer(`/artist/${artistId}/top?limit=10`);
+    if (!data || !data.data || !Array.isArray(data.data)) {
+      return SAMPLE_TRACKS.filter(track => track.artistId === artistId);
+    }
     return data.data.map(transformTrackToSong);
   } catch (error) {
     console.error("Error getting artist top tracks:", error);
@@ -327,6 +373,9 @@ export const getArtistTopTracks = async (artistId: string) => {
 export const getChartTracks = async (limit = 30) => {
   try {
     const data = await fetchFromDeezer(`/chart/0/tracks?limit=${limit}`);
+    if (!data || !data.data || !Array.isArray(data.data)) {
+      return SAMPLE_TRACKS.slice(0, limit);
+    }
     return data.data.map(transformTrackToSong);
   } catch (error) {
     console.error("Error getting chart tracks:", error);
@@ -339,10 +388,21 @@ export const getChartTracks = async (limit = 30) => {
 // Get recommendations based on a track
 export const getRecommendations = async (trackId: string, limit = 10) => {
   try {
-    // Deezer doesn't have direct recommendations API, we'll try to get similar tracks
-    // If the track exists in our sample data, we can provide other tracks as recommendations
-    // Otherwise, we'll use the radio endpoint (not ideal but workable)
+    // First try to get the radio for this track
+    try {
+      const radioData = await fetchFromDeezer(`/track/${trackId}/radio`);
+      if (radioData && radioData.data && Array.isArray(radioData.data)) {
+        return radioData.data.map(transformTrackToSong);
+      }
+    } catch (radioError) {
+      console.error("Error getting radio tracks:", radioError);
+    }
+    
+    // If radio fails, try general radio tracks
     const data = await fetchFromDeezer(`/radio/tracks`);
+    if (!data || !data.data || !Array.isArray(data.data)) {
+      throw new Error("Invalid response from radio tracks endpoint");
+    }
     return data.data.map(transformTrackToSong);
   } catch (error) {
     console.error("Error getting recommendations:", error);
@@ -357,8 +417,18 @@ export const getRecommendations = async (trackId: string, limit = 10) => {
 
 // Search for artists
 export const searchArtists = async (query: string) => {
+  if (!query || query.trim() === '') {
+    return SAMPLE_ARTISTS;
+  }
+  
   try {
     const data = await fetchFromDeezer(`/search/artist?q=${encodeURIComponent(query)}`);
+    if (!data || !data.data || !Array.isArray(data.data)) {
+      return SAMPLE_ARTISTS.filter(artist => 
+        artist.name.toLowerCase().includes(query.toLowerCase())
+      );
+    }
+    
     return data.data.map((artist: any) => ({
       id: artist.id.toString(),
       name: artist.name,
@@ -380,6 +450,10 @@ export const searchArtists = async (query: string) => {
 export const getArtistAlbums = async (artistId: string, limit = 10) => {
   try {
     const data = await fetchFromDeezer(`/artist/${artistId}/albums?limit=${limit}`);
+    if (!data || !data.data || !Array.isArray(data.data)) {
+      return [];
+    }
+    
     return data.data.map((album: any) => ({
       id: album.id.toString(),
       title: album.title,
@@ -399,6 +473,10 @@ export const getArtistAlbums = async (artistId: string, limit = 10) => {
 export const getPlaylist = async (playlistId: string) => {
   try {
     const data = await fetchFromDeezer(`/playlist/${playlistId}`);
+    if (!data || !data.tracks || !data.tracks.data) {
+      return null;
+    }
+    
     return {
       id: data.id.toString(),
       name: data.title,
@@ -418,6 +496,10 @@ export const getPlaylist = async (playlistId: string) => {
 export const getAlbumTracks = async (albumId: string) => {
   try {
     const data = await fetchFromDeezer(`/album/${albumId}/tracks`);
+    if (!data || !data.data || !Array.isArray(data.data)) {
+      return [];
+    }
+    
     return data.data.map((track: any) => ({
       id: track.id.toString(),
       title: track.title,
@@ -438,6 +520,10 @@ export const getAlbumTracks = async (albumId: string) => {
 export const getGenres = async () => {
   try {
     const data = await fetchFromDeezer(`/genre`);
+    if (!data || !data.data || !Array.isArray(data.data)) {
+      return DEFAULT_GENRES;
+    }
+    
     return data.data.map((genre: any) => ({
       id: genre.id.toString(),
       name: genre.name,
@@ -446,11 +532,6 @@ export const getGenres = async () => {
   } catch (error) {
     console.error("Error getting genres:", error);
     toast.error("Failed to get genres");
-    return [
-      { id: "1", name: "Pop", picture: "https://e-cdns-images.dzcdn.net/images/misc/db7a604d9e7634a67d45cfc86b7f4866/500x500-000000-80-0-0.jpg" },
-      { id: "2", name: "Rock", picture: "https://e-cdns-images.dzcdn.net/images/misc/b36ca681667f48421a733aab7a17fc17/500x500-000000-80-0-0.jpg" },
-      { id: "3", name: "Hip Hop", picture: "https://e-cdns-images.dzcdn.net/images/misc/4bcd469d3b555cc9999980325d172ae5/500x500-000000-80-0-0.jpg" },
-      { id: "4", name: "Electronic", picture: "https://e-cdns-images.dzcdn.net/images/misc/f3bc07e7a4e03a701c55f386c55e6150/500x500-000000-80-0-0.jpg" }
-    ];
+    return DEFAULT_GENRES;
   }
 };
