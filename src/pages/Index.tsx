@@ -113,7 +113,7 @@ const Home = () => {
       try {
         setLocalLoading(true);
         
-        // Fetch trending tracks from Deezer
+        // Fetch trending tracks from API
         let chartTracks;
         try {
           chartTracks = await api.getChartTracks(10);
@@ -121,7 +121,7 @@ const Home = () => {
           console.error("Failed to fetch trending tracks:", error);
           chartTracks = SAMPLE_TRACKS;
           toast.error("Using sample trending tracks", {
-            description: "Deezer API is currently unavailable"
+            description: "Music API is currently unavailable"
           });
         }
         
@@ -148,7 +148,7 @@ const Home = () => {
           console.error("Failed to fetch genres:", error);
           setGenres(DEFAULT_GENRES);
           toast.error("Using default genres", {
-            description: "Couldn't load genre data from Deezer"
+            description: "Couldn't load genre data from music API"
           });
         }
         
@@ -174,7 +174,7 @@ const Home = () => {
         setGenres(DEFAULT_GENRES);
         
         toast.error("Using sample data", {
-          description: "Couldn't load data from Deezer API"
+          description: "Couldn't load data from music API"
         });
       } finally {
         setLocalLoading(false);
@@ -205,10 +205,10 @@ const Home = () => {
           {/* Left content */}
           <div className="flex-1">
             <h1 className="text-4xl md:text-5xl font-display font-bold mb-4 bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
-              Stream With Deezer <br /> Integration
+              Harmony Stream <br /> Music Platform
             </h1>
             <p className="text-white/70 mb-6 max-w-md">
-              Explore millions of tracks from Deezer, personalized playlists, and the latest releases. Stream anytime, anywhere.
+              Discover your unique sound journey with our revolutionary AI-powered music experience. Unlike other platforms, we combine personalized recommendations with a seamless listening experience.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button 
@@ -258,7 +258,7 @@ const Home = () => {
             <h2 className="text-2xl font-display font-bold flex items-center gap-2">
               <Sparkles size={20} className="text-indigo-400" />
               <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-                Trending From Deezer
+                Hot & Trending Now
               </span>
             </h2>
             <Link to="/library" className="text-sm text-white/70 hover:text-white flex items-center gap-1">
@@ -294,7 +294,7 @@ const Home = () => {
               </div>
               <h3 className="text-lg font-display font-medium mb-2">No trending tracks available</h3>
               <p className="text-white/70 max-w-md mx-auto mb-6">
-                We couldn't load trending tracks from Deezer at the moment. Please try again later.
+                We couldn't load trending tracks at the moment. Please try again later.
               </p>
               <Button 
                 onClick={() => window.location.reload()}
@@ -312,7 +312,7 @@ const Home = () => {
             <h2 className="text-2xl font-display font-bold flex items-center gap-2">
               <Radio size={20} className="text-rose-400" />
               <span className="bg-gradient-to-r from-rose-400 to-orange-400 bg-clip-text text-transparent">
-                Music Genres
+                Explore By Genre
               </span>
             </h2>
           </div>
@@ -429,7 +429,7 @@ const Home = () => {
             <h2 className="text-2xl font-display font-bold flex items-center gap-2">
               <Headphones size={20} className="text-emerald-400" />
               <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
-                Popular Artists on Deezer
+                Featured Artists
               </span>
             </h2>
             <Link to="/artists" className="text-sm text-white/70 hover:text-white flex items-center gap-1">
@@ -566,7 +566,7 @@ const Home = () => {
           )}
         </section>
         
-        {/* About Deezer integration */}
+        {/* About integration section - now with unique branding instead of Deezer */}
         <section className="p-6 rounded-xl bg-gradient-to-r from-black/40 to-black/60 border border-white/5">
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="md:w-1/3 flex justify-center">
@@ -576,19 +576,19 @@ const Home = () => {
             </div>
             <div className="md:w-2/3">
               <h2 className="text-2xl font-display font-bold mb-2 bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
-                Powered by Deezer API
+                Next-Gen Music Experience
               </h2>
               <p className="text-white/70 mb-4">
-                Enjoy millions of tracks, artists, and playlists from Deezer's vast music catalog. 
-                This streaming experience brings you the latest and most popular music directly through 
-                Deezer's extensive library.
+                Harmony Stream stands apart with our proprietary audio algorithm that adapts to your unique listening patterns. 
+                Unlike other platforms, we offer high-fidelity streaming with adaptive sound enhancement technology 
+                that optimizes audio based on your device and environment.
               </p>
               <Button 
                 variant="outline"
                 className="bg-white/5 text-white border-white/10 hover:bg-white/10"
-                onClick={() => window.open("https://developers.deezer.com/", "_blank")}
+                onClick={() => window.open("https://github.com", "_blank")}
               >
-                Learn More About Deezer API
+                Learn About Our Technology
               </Button>
             </div>
           </div>
