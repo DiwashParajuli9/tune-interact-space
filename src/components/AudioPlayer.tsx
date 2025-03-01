@@ -1,10 +1,24 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useMusic } from '@/contexts/MusicContext';
 import { toast } from 'sonner';
 
 const AudioPlayer: React.FC = () => {
   const { currentSong, isPlaying, playSong, pauseSong } = useMusic();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Create audio element when component mounts
+  useEffect(() => {
+    audioRef.current = new Audio();
+    
+    // Clean up on unmount
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+    };
+  }, []);
 
   // Log when playback state changes
   useEffect(() => {
@@ -12,6 +26,54 @@ const AudioPlayer: React.FC = () => {
       console.log(`PlayState: ${isPlaying ? 'Playing' : 'Paused'} - ${currentSong.title}`);
     }
   }, [currentSong, isPlaying]);
+
+  // Handle audio source and playing state
+  useEffect(() => {
+    if (!audioRef.current) return;
+    
+    // If we have a song with an audio source
+    if (currentSong && currentSong.audioSrc) {
+      audioRef.current.src = currentSong.audioSrc;
+      audioRef.current.load();
+      
+      if (isPlaying) {
+        const playPromise = audioRef.current.play();
+        
+        // Handle play promise to avoid DOMExceptions
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.error("Audio playback error:", error);
+            pauseSong();
+            toast.error("Couldn't play audio", {
+              description: "Try another song or check your connection"
+            });
+          });
+        }
+      }
+    } else {
+      // Pause if no audio source
+      audioRef.current.pause();
+    }
+  }, [currentSong, isPlaying, pauseSong]);
+
+  // Handle play/pause state changes
+  useEffect(() => {
+    if (!audioRef.current || !currentSong) return;
+    
+    if (isPlaying) {
+      if (audioRef.current.paused && currentSong.audioSrc) {
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.error("Audio play error:", error);
+            pauseSong();
+          });
+        }
+      }
+    } else {
+      audioRef.current.pause();
+    }
+  }, [isPlaying, currentSong, pauseSong]);
 
   // Handle case where preview_url is null (Spotify doesn't provide preview for all tracks)
   useEffect(() => {
