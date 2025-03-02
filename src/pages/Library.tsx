@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useMusic } from "@/contexts/MusicContext";
 import SongCard, { SongCardSkeleton } from "@/components/SongCard";
@@ -45,6 +46,7 @@ const Library = () => {
   const [trendingTracks, setTrendingTracks] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Fetch trending tracks on initial load
   useEffect(() => {
     const fetchTrendingTracks = async () => {
       try {
@@ -62,6 +64,7 @@ const Library = () => {
     fetchTrendingTracks();
   }, []);
 
+  // Handle search
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
@@ -83,6 +86,7 @@ const Library = () => {
     }
   };
 
+  // Handle create playlist
   const handleCreatePlaylist = () => {
     if (newPlaylistName.trim()) {
       createPlaylist(newPlaylistName.trim());
@@ -92,6 +96,7 @@ const Library = () => {
     }
   };
 
+  // Refresh trending tracks
   const refreshTrending = async () => {
     setRefreshing(true);
     try {
@@ -106,18 +111,14 @@ const Library = () => {
     }
   };
 
+  // Get a random gradient from our list
   const getRandomGradient = () => {
     return GRADIENT_CLASSES[Math.floor(Math.random() * GRADIENT_CLASSES.length)];
   };
 
-  const handleSongClick = (song: any) => {
-    if (song) {
-      playSong(song);
-    }
-  };
-
   return (
     <div className="pb-24">
+      {/* Header section with dynamic gradient */}
       <div className="relative mb-8 overflow-hidden">
         <div className={`absolute inset-0 bg-gradient-to-r ${getRandomGradient()} rounded-xl opacity-30`} />
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB4PSIwIiB5PSIwIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSgzMCkiPjxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIyIiBoZWlnaHQ9IjIiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')]" />
@@ -189,6 +190,7 @@ const Library = () => {
         </div>
       </div>
 
+      {/* Search section */}
       <div className="mb-8">
         <SearchInput 
           placeholder="Search for songs, artists, albums..." 
@@ -197,6 +199,7 @@ const Library = () => {
         />
       </div>
 
+      {/* Tabs and content */}
       {isSearching ? (
         <div className="animate-fade-in">
           <div className="flex items-center justify-between mb-4">
@@ -228,9 +231,7 @@ const Library = () => {
               "space-y-2 backdrop-blur-lg bg-black/20 rounded-xl overflow-hidden border border-white/10 p-3"
             }>
               {searchResults.map((song) => (
-                <div key={song.id} onClick={() => handleSongClick(song)} className="cursor-pointer">
-                  <SongCard song={song} variant={viewMode} />
-                </div>
+                <SongCard key={song.id} song={song} variant={viewMode} />
               ))}
             </div>
           )}

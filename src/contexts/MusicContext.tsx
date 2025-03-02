@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import * as api from "@/lib/api";
@@ -12,7 +13,6 @@ export interface Song {
   duration: number;
   artistId?: string;
   albumId?: string;
-  externalUrl?: string;
 }
 
 export interface Artist {
@@ -148,21 +148,24 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolumeState] = useState(0.7);
   const [progress, setProgress] = useState(0);
-  const [songs, setSongs] = useState<Song[]>(SAMPLE_TRACKS);
+  const [songs, setSongs] = useState<Song[]>(SAMPLE_TRACKS); // Initialize with sample tracks immediately
   const [artists, setArtists] = useState<Artist[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [queue, setQueue] = useState<Song[]>([]);
-  const [trendingSongs, setTrendingSongs] = useState<Song[]>(SAMPLE_TRACKS);
+  const [trendingSongs, setTrendingSongs] = useState<Song[]>(SAMPLE_TRACKS); // Initialize with sample tracks immediately
   const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   
+  // Audio element reference
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Initialize audio element
   useEffect(() => {
     audioRef.current = new Audio();
     audioRef.current.volume = volume;
 
+    // Clean up audio on unmount
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -171,12 +174,14 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
+  // Load initial data
   useEffect(() => {
     const loadInitialData = async () => {
       try {
         setIsLoading(true);
         setHasError(false);
         
+        // Create default playlist if none exists - do this first
         let initialPlaylists: Playlist[] = [
           {
             id: "default",
@@ -187,7 +192,8 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           },
         ];
         
-        let chartTracks = SAMPLE_TRACKS;
+        // Get chart tracks for trending songs
+        let chartTracks = SAMPLE_TRACKS; // Start with sample tracks
         
         try {
           const apiTracks = await api.getChartTracks();
@@ -204,10 +210,12 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTrendingSongs(chartTracks);
         setSongs(chartTracks);
         
+        // Load stored playlists from localStorage
         const storedPlaylists = localStorage.getItem('playlists');
         if (storedPlaylists) {
           try {
             const parsedPlaylists = JSON.parse(storedPlaylists);
+            // Convert string dates back to Date objects
             const formattedPlaylists = parsedPlaylists.map((playlist: any) => ({
               ...playlist,
               createdAt: new Date(playlist.createdAt)
@@ -215,13 +223,16 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setPlaylists(formattedPlaylists);
           } catch (parseError) {
             console.error("Failed to parse playlists:", parseError);
+            // Use default playlist if parsing fails
             setPlaylists(initialPlaylists);
             toast.error("Failed to load playlists, using default");
           }
         } else {
+          // Use default playlist if none exists
           setPlaylists(initialPlaylists);
         }
         
+        // Load recently played from localStorage
         const storedRecentlyPlayed = localStorage.getItem('recentlyPlayed');
         if (storedRecentlyPlayed) {
           try {
@@ -231,14 +242,17 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setRecentlyPlayed([]);
           }
         }
+        
       } catch (error) {
         console.error("Failed to load initial data:", error);
         toast.error("Failed to load music data - using fallbacks");
         
+        // Ensure we always have some data even if everything fails
         setTrendingSongs(SAMPLE_TRACKS);
         setSongs(SAMPLE_TRACKS);
         setHasError(true);
         
+        // Still create a default playlist
         setPlaylists([
           {
             id: "default",
@@ -256,13 +270,16 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadInitialData();
   }, []);
 
+  // Handle audio playing state and volume changes
   useEffect(() => {
     if (audioRef.current) {
       if (isPlaying) {
         const playPromise = audioRef.current.play();
+        // Handle play() promise to avoid DOMException
         if (playPromise !== undefined) {
           playPromise.catch((error) => {
             console.error("Audio play error:", error);
+            // Autoplay was prevented, set playing state to false
             setIsPlaying(false);
             toast.error("Audio playback was blocked", {
               description: "Try clicking play again"
@@ -275,26 +292,18 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [isPlaying]);
   
+  // Update volume when it changes
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = volume;
     }
   }, [volume]);
 
+  // Update audio source when current song changes
   useEffect(() => {
     if (currentSong && audioRef.current) {
-      if (!currentSong.audioSrc || currentSong.audioSrc === "null") {
-        console.warn("Song has no preview available:", currentSong.title);
-        setIsPlaying(false);
-        toast.error("This song doesn't have a preview available", {
-          description: currentSong.externalUrl ? "Try opening it in Spotify" : "Try another song"
-        });
-        return;
-      }
-      
       audioRef.current.src = currentSong.audioSrc;
       audioRef.current.load();
-      
       if (isPlaying) {
         const playPromise = audioRef.current.play();
         if (playPromise !== undefined) {
@@ -310,18 +319,21 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [currentSong]);
 
+  // Save playlists to localStorage when they change
   useEffect(() => {
     if (playlists && playlists.length > 0) {
       localStorage.setItem('playlists', JSON.stringify(playlists));
     }
   }, [playlists]);
 
+  // Save recently played to localStorage when it changes
   useEffect(() => {
     if (recentlyPlayed && recentlyPlayed.length > 0) {
       localStorage.setItem('recentlyPlayed', JSON.stringify(recentlyPlayed));
     }
   }, [recentlyPlayed]);
 
+  // Track audio progress
   useEffect(() => {
     if (!audioRef.current) return;
 
@@ -350,11 +362,9 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
     
-    if (!song.audioSrc || song.audioSrc === "null") {
-      setCurrentSong(song);
-      toast.error("This song doesn't have a preview available", {
-        description: song.externalUrl ? "Try opening it in Spotify" : "Try another song"
-      });
+    // Check if audio source is valid
+    if (!song.audioSrc) {
+      toast.error("This song doesn't have a valid audio source");
       return;
     }
     
@@ -362,8 +372,10 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsPlaying(true);
     setProgress(0);
     
+    // Add to recently played
     addToRecentlyPlayed(song);
     
+    // If queue is empty, add recommendations
     if (queue.length === 0) {
       getRecommendationsForQueue(song.id);
     }
@@ -379,11 +391,13 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (recommendations && recommendations.length > 0) {
         setQueue(recommendations.filter(s => s.id !== songId));
       } else {
+        // Use other songs from sample tracks as recommendations if API returns empty
         const fallbackRecommendations = SAMPLE_TRACKS.filter(s => s.id !== songId);
         setQueue(fallbackRecommendations);
       }
     } catch (error) {
       console.error("Error getting recommendations:", error);
+      // Use other songs from sample tracks as recommendations
       const fallbackRecommendations = SAMPLE_TRACKS.filter(s => s.id !== songId);
       setQueue(fallbackRecommendations);
     }
@@ -393,8 +407,13 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!song) return;
     
     setRecentlyPlayed(prev => {
+      // Handle the case where prev might be null or undefined
       const safeList = prev || [];
+      
+      // Remove if already exists
       const filtered = safeList.filter(s => s && s.id !== song.id);
+      
+      // Add to beginning and limit to 20 songs
       return [song, ...filtered].slice(0, 20);
     });
   };
@@ -411,6 +430,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setQueue(queue.slice(1));
       addToRecentlyPlayed(nextSong);
     } else if (currentSong && songs && songs.length > 0) {
+      // Find next song in the list
       const currentIndex = songs.findIndex((s) => s && s.id === currentSong.id);
       if (currentIndex >= 0 && currentIndex < songs.length - 1) {
         const nextSong = songs[currentIndex + 1];
@@ -418,6 +438,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setProgress(0);
         addToRecentlyPlayed(nextSong);
       } else {
+        // End of songs list
         setIsPlaying(false);
         setCurrentSong(null);
         setProgress(0);
@@ -427,12 +448,14 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const prevSong = () => {
     if (currentSong) {
+      // If progress is more than 3 seconds, restart song
       if (audioRef.current && audioRef.current.currentTime > 3) {
         audioRef.current.currentTime = 0;
         setProgress(0);
         return;
       }
       
+      // Find previous song in the list
       const currentIndex = songs.findIndex((s) => s && s.id === currentSong.id);
       if (currentIndex > 0) {
         const prevSong = songs[currentIndex - 1];
@@ -457,6 +480,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (playlistIndex !== -1) {
       const song = songs.find((s) => s && s.id === songId);
       if (song) {
+        // Check if song already exists in playlist
         const songExists = playlists[playlistIndex].songs.some((s) => s && s.id === songId);
         if (songExists) {
           toast.error("Song already in playlist");
@@ -519,6 +543,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (error) {
       console.error("Error searching songs:", error);
       toast.error("Search API failed, using sample data");
+      // Filter sample tracks as fallback
       return SAMPLE_TRACKS.filter(track => 
         track.title.toLowerCase().includes(query.toLowerCase()) || 
         track.artist.toLowerCase().includes(query.toLowerCase())
@@ -531,11 +556,14 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const searchArtists = async (query: string): Promise<Artist[]> => {
     if (!query || query.trim() === '') return [];
     
+    // Due to limitations in the free API, we'll simulate artist search
+    // by extracting artists from track search results
     setIsLoading(true);
     try {
       const tracks = await api.searchTracks(query);
       
       if (!tracks || tracks.length === 0) {
+        // Create sample artists from sample tracks if API fails
         const uniqueArtists = new Map<string, Artist>();
         SAMPLE_TRACKS.filter(track => 
           track.artist.toLowerCase().includes(query.toLowerCase())
@@ -553,13 +581,14 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return Array.from(uniqueArtists.values());
       }
       
+      // Extract unique artists
       const uniqueArtists = new Map<string, Artist>();
       tracks.forEach(track => {
         if (track.artistId && !uniqueArtists.has(track.artistId)) {
           uniqueArtists.set(track.artistId, {
             id: track.artistId,
             name: track.artist,
-            image: track.albumCover,
+            image: track.albumCover, // Using album cover as artist image
             genre: "Unknown",
             bio: `Popular artist with hits like ${track.title}`,
           });
@@ -569,6 +598,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return Array.from(uniqueArtists.values());
     } catch (error) {
       console.error("Error searching artists:", error);
+      // Create sample artists from sample tracks
       const uniqueArtists = new Map<string, Artist>();
       SAMPLE_TRACKS.filter(track => 
         track.artist.toLowerCase().includes(query.toLowerCase())
@@ -599,6 +629,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (error) {
       console.error("Error getting artist songs:", error);
       toast.error("Failed to load artist tracks, using samples");
+      // Filter sample tracks by artistId as fallback
       return SAMPLE_TRACKS.filter(track => track.artistId === artistId);
     } finally {
       setIsLoading(false);
