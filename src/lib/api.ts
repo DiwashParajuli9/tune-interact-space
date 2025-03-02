@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 // Types for Deezer API responses
@@ -92,6 +91,64 @@ export interface DeezerPlaylist {
   };
   type: string;
 }
+
+// New Spotify API Types
+interface SpotifyToken {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
+interface SpotifyImage {
+  url: string;
+  height: number;
+  width: number;
+}
+
+interface SpotifyArtist {
+  id: string;
+  name: string;
+  images?: SpotifyImage[];
+  external_urls: {
+    spotify: string;
+  };
+}
+
+interface SpotifyAlbum {
+  id: string;
+  name: string;
+  images: SpotifyImage[];
+  external_urls: {
+    spotify: string;
+  };
+}
+
+interface SpotifyTrack {
+  id: string;
+  name: string;
+  preview_url: string | null;
+  duration_ms: number;
+  explicit: boolean;
+  artists: SpotifyArtist[];
+  album: SpotifyAlbum;
+  external_urls: {
+    spotify: string;
+  };
+}
+
+interface SpotifySearchResult {
+  tracks: {
+    items: SpotifyTrack[];
+    total: number;
+    next: string | null;
+  };
+}
+
+// Spotify credentials
+const SPOTIFY_CLIENT_ID = "bc23f51e6984427f95ec020acfa24430";
+const SPOTIFY_CLIENT_SECRET = "702c76d333a54bf7a7b55c7feadcbe12";
+const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
+const SPOTIFY_API_URL = "https://api.spotify.com/v1";
 
 // Since AllOrigins is experiencing timeouts, let's use a different proxy service
 // or go directly to the Deezer API when possible with multiple fallbacks
@@ -253,6 +310,21 @@ export const transformTrackToSong = (track: DeezerTrack) => {
   };
 };
 
+// New function to transform Spotify track to our Song format
+export const transformSpotifyTrackToSong = (track: SpotifyTrack) => {
+  return {
+    id: `spotify-${track.id}`,
+    title: track.name,
+    artist: track.artists[0]?.name || "Unknown Artist",
+    albumCover: track.album.images[1]?.url || track.album.images[0]?.url || "",
+    audioSrc: track.preview_url || "", // Note: Some Spotify tracks don't have preview URLs
+    duration: Math.floor(track.duration_ms / 1000), // Convert ms to seconds
+    artistId: track.artists[0]?.id || "",
+    albumId: track.album.id || "",
+    spotifyUrl: track.external_urls.spotify || "",
+  };
+};
+
 // Function to transform Deezer artist to our Artist format
 export const transformArtistToArtist = (artist: DeezerArtistDetails) => {
   return {
@@ -262,6 +334,71 @@ export const transformArtistToArtist = (artist: DeezerArtistDetails) => {
     genre: "Unknown", // Deezer doesn't provide genre in artist object
     bio: `${artist.name} has ${artist.nb_album} albums and ${artist.nb_fan} fans.`,
   };
+};
+
+// Spotify API Token handling
+let spotifyToken: string | null = null;
+let tokenExpiry: number = 0;
+
+const getSpotifyToken = async (): Promise<string> => {
+  // Check if we have a valid token
+  if (spotifyToken && tokenExpiry > Date.now()) {
+    return spotifyToken;
+  }
+  
+  try {
+    // Get a new token using client credentials flow
+    const response = await fetch(SPOTIFY_TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)
+      },
+      body: 'grant_type=client_credentials'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to get Spotify token: ${response.status}`);
+    }
+    
+    const data: SpotifyToken = await response.json();
+    spotifyToken = data.access_token;
+    // Set expiry with a 60-second buffer
+    tokenExpiry = Date.now() + ((data.expires_in - 60) * 1000);
+    
+    return spotifyToken;
+  } catch (error) {
+    console.error("Error getting Spotify token:", error);
+    throw error;
+  }
+};
+
+// Helper function to fetch from Spotify API
+const fetchFromSpotify = async (endpoint: string, params: Record<string, string> = {}) => {
+  try {
+    const token = await getSpotifyToken();
+    
+    // Build URL with parameters
+    const url = new URL(`${SPOTIFY_API_URL}${endpoint}`);
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.append(key, value);
+    });
+    
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Spotify API error: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching from Spotify (${endpoint}):`, error);
+    throw error;
+  }
 };
 
 // Helper function to fetch from Deezer API with proxy and retries
@@ -301,13 +438,27 @@ const fetchFromDeezer = async (endpoint: string, retryCount = 0) => {
   }
 };
 
-// Search for tracks
+// Search for tracks - now tries Spotify first, then falls back to Deezer
 export const searchTracks = async (query: string) => {
   if (!query || query.trim() === '') {
     return SAMPLE_TRACKS;
   }
   
   try {
+    // Try Spotify first
+    const spotifyData = await fetchFromSpotify('/search', {
+      q: query,
+      type: 'track',
+      limit: '20'
+    });
+    
+    if (spotifyData && spotifyData.tracks && spotifyData.tracks.items && spotifyData.tracks.items.length > 0) {
+      console.log("Successfully loaded tracks from Spotify API");
+      return spotifyData.tracks.items.map(transformSpotifyTrackToSong);
+    }
+    
+    // Fall back to Deezer if Spotify returns no results
+    console.log("No Spotify results, trying Deezer");
     const data = await fetchFromDeezer(`/search?q=${encodeURIComponent(query)}`);
     if (!data || !data.data || !Array.isArray(data.data) || data.data.length === 0) {
       return SAMPLE_TRACKS.filter(track => 
@@ -318,7 +469,7 @@ export const searchTracks = async (query: string) => {
     return data.data.map(transformTrackToSong);
   } catch (error) {
     console.error("Error searching tracks:", error);
-    toast.error("Using sample data - Deezer API search failed");
+    toast.error("Using sample data - API search failed");
     // Return filtered sample tracks as fallback
     return SAMPLE_TRACKS.filter(track => 
       track.title.toLowerCase().includes(query.toLowerCase()) || 
@@ -369,9 +520,45 @@ export const getArtistTopTracks = async (artistId: string) => {
   }
 };
 
-// Get chart tracks
+// Get chart tracks - now uses Spotify New Releases when possible
 export const getChartTracks = async (limit = 30) => {
   try {
+    // Try Spotify first - use New Releases as a proxy for "chart"
+    try {
+      const spotifyData = await fetchFromSpotify('/browse/new-releases', {
+        limit: limit.toString()
+      });
+      
+      if (spotifyData && spotifyData.albums && spotifyData.albums.items && spotifyData.albums.items.length > 0) {
+        console.log("Using Spotify new releases for chart data");
+        
+        // For each album, get the first track
+        const trackPromises = spotifyData.albums.items.map(async (album: any) => {
+          try {
+            const albumTracks = await fetchFromSpotify(`/albums/${album.id}/tracks`, { limit: '1' });
+            if (albumTracks && albumTracks.items && albumTracks.items.length > 0) {
+              const trackDetails = await fetchFromSpotify(`/tracks/${albumTracks.items[0].id}`);
+              return transformSpotifyTrackToSong(trackDetails);
+            }
+            return null;
+          } catch (e) {
+            console.error("Error getting album track:", e);
+            return null;
+          }
+        });
+        
+        const tracks = await Promise.all(trackPromises);
+        const validTracks = tracks.filter(Boolean);
+        
+        if (validTracks.length > 0) {
+          return validTracks;
+        }
+      }
+    } catch (spotifyError) {
+      console.error("Error getting Spotify new releases:", spotifyError);
+    }
+    
+    // Fall back to Deezer if Spotify fails
     const data = await fetchFromDeezer(`/chart/0/tracks?limit=${limit}`);
     if (!data || !data.data || !Array.isArray(data.data)) {
       return SAMPLE_TRACKS.slice(0, limit);
@@ -379,7 +566,7 @@ export const getChartTracks = async (limit = 30) => {
     return data.data.map(transformTrackToSong);
   } catch (error) {
     console.error("Error getting chart tracks:", error);
-    toast.error("Using sample data - Deezer API charts failed");
+    toast.error("Using sample data - API charts failed");
     // Return sample tracks as fallback
     return SAMPLE_TRACKS.slice(0, limit);
   }
