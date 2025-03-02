@@ -13,7 +13,13 @@ const AudioPlayer: React.FC = () => {
     }
   }, [currentSong, isPlaying]);
 
+  // Don't render if there's no song or if the MusicPlayer should be displayed
   if (!currentSong) return null;
+
+  // We'll prevent this component from rendering at all when MusicPlayer is shown
+  // This ensures only one player is visible at a time
+  // The MusicPlayer is rendered at the bottom of the page layout
+  if (document.querySelector('.glass-dark')) return null;
 
   const handlePlayPause = () => {
     if (!currentSong.audioSrc) {
