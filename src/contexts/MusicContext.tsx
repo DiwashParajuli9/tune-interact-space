@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import * as api from "@/lib/api";
@@ -12,7 +13,6 @@ export interface Song {
   duration: number;
   artistId?: string;
   albumId?: string;
-  spotifyUrl?: string; // Add spotifyUrl for linking out to Spotify
 }
 
 export interface Artist {
@@ -165,31 +165,9 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     audioRef.current = new Audio();
     audioRef.current.volume = volume;
 
-    // Handle audio errors
-    const handleError = (e: ErrorEvent) => {
-      console.error("Audio playback error:", e);
-      setIsPlaying(false);
-      if (currentSong) {
-        if (!currentSong.audioSrc) {
-          toast.error("No preview available for this track", {
-            description: "Try selecting a different song"
-          });
-        } else {
-          toast.error("Failed to play audio", {
-            description: "There was an issue with the audio source"
-          });
-        }
-      }
-    };
-
-    if (audioRef.current) {
-      audioRef.current.addEventListener('error', handleError as EventListener);
-    }
-
     // Clean up audio on unmount
     return () => {
       if (audioRef.current) {
-        audioRef.current.removeEventListener('error', handleError as EventListener);
         audioRef.current.pause();
         audioRef.current.src = '';
       }
@@ -296,29 +274,23 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     if (audioRef.current) {
       if (isPlaying) {
-        // Only attempt to play if there's a valid audio source
-        if (currentSong && currentSong.audioSrc) {
-          const playPromise = audioRef.current.play();
-          // Handle play() promise to avoid DOMException
-          if (playPromise !== undefined) {
-            playPromise.catch((error) => {
-              console.error("Audio play error:", error);
-              // Autoplay was prevented, set playing state to false
-              setIsPlaying(false);
-              toast.error("Audio playback was blocked", {
-                description: "Try clicking play again"
-              });
+        const playPromise = audioRef.current.play();
+        // Handle play() promise to avoid DOMException
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.error("Audio play error:", error);
+            // Autoplay was prevented, set playing state to false
+            setIsPlaying(false);
+            toast.error("Audio playback was blocked", {
+              description: "Try clicking play again"
             });
-          }
-        } else {
-          // No audio source, shouldn't try to play
-          setIsPlaying(false);
+          });
         }
       } else {
         audioRef.current.pause();
       }
     }
-  }, [isPlaying, currentSong]);
+  }, [isPlaying]);
   
   // Update volume when it changes
   useEffect(() => {
@@ -330,29 +302,19 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Update audio source when current song changes
   useEffect(() => {
     if (currentSong && audioRef.current) {
-      // Only set the audio source if it exists
-      if (currentSong.audioSrc) {
-        audioRef.current.src = currentSong.audioSrc;
-        audioRef.current.load();
-        if (isPlaying) {
-          const playPromise = audioRef.current.play();
-          if (playPromise !== undefined) {
-            playPromise.catch((error) => {
-              console.error("Audio play error:", error);
-              setIsPlaying(false);
-              toast.error("Couldn't play audio", {
-                description: "Try another song or check internet connection"
-              });
+      audioRef.current.src = currentSong.audioSrc;
+      audioRef.current.load();
+      if (isPlaying) {
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.error("Audio play error:", error);
+            setIsPlaying(false);
+            toast.error("Couldn't play audio", {
+              description: "Try another song or check internet connection"
             });
-          }
+          });
         }
-      } else {
-        // If there's no audio source, ensure we're not playing
-        audioRef.current.src = '';
-        setIsPlaying(false);
-        toast.error("No preview available for this track", {
-          description: "Spotify only provides previews for some tracks"
-        });
       }
     }
   }, [currentSong]);
@@ -400,23 +362,15 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
     
-    setCurrentSong(song);
-    
     // Check if audio source is valid
     if (!song.audioSrc) {
-      toast.error("No preview available for this track", {
-        description: song.id.startsWith('spotify-') ? 
-          "Spotify only provides previews for some tracks" : 
-          "This song doesn't have a valid audio source"
-      });
-      // We still set the song as current but don't start playing
-      setIsPlaying(false);
-      setProgress(0);
-    } else {
-      setIsPlaying(true);
-      setProgress(0);
-      toast.success(`Now playing: ${song.title}`);
+      toast.error("This song doesn't have a valid audio source");
+      return;
     }
+    
+    setCurrentSong(song);
+    setIsPlaying(true);
+    setProgress(0);
     
     // Add to recently played
     addToRecentlyPlayed(song);
@@ -425,6 +379,8 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (queue.length === 0) {
       getRecommendationsForQueue(song.id);
     }
+    
+    toast.success(`Now playing: ${song.title}`);
   };
 
   const getRecommendationsForQueue = async (songId: string) => {
