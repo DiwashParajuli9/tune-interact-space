@@ -15,6 +15,21 @@ const AudioPlayer: React.FC = () => {
 
   if (!currentSong) return null;
 
+  const handlePlayPause = () => {
+    if (!currentSong.audioSrc) {
+      toast.error("Audio preview not available", {
+        description: "This song doesn't have a preview available"
+      });
+      return;
+    }
+    
+    if (isPlaying) {
+      pauseSong();
+    } else {
+      playSong(currentSong);
+    }
+  };
+
   return (
     <div className="fixed bottom-24 right-4 bg-black/80 p-3 rounded-lg border border-white/10 shadow-lg z-50">
       <div className="flex items-center gap-3">
@@ -31,7 +46,7 @@ const AudioPlayer: React.FC = () => {
         </div>
         <button 
           className="ml-2 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"
-          onClick={() => isPlaying ? pauseSong() : playSong(currentSong)}
+          onClick={handlePlayPause}
         >
           {isPlaying ? (
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

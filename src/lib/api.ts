@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 // Types for Deezer API responses
@@ -186,7 +185,8 @@ const SAMPLE_TRACKS = [
   }
 ];
 
-const SAMPLE_ARTISTS = [
+// Sample artists for fallback when API has issues
+export const SAMPLE_ARTISTS = [
   {
     id: "101",
     name: "The Weeknd",
@@ -228,6 +228,34 @@ const SAMPLE_ARTISTS = [
     image: "https://e-cdns-images.dzcdn.net/images/artist/e6a04d735093a246dbfd79a530422699/500x500-000000-80-0-0.jpg",
     genre: "Pop, Dance",
     bio: "Dua Lipa is an English singer and songwriter. After working as a model, she signed with Warner Music Group in 2015 and released her self-titled debut album in 2017."
+  },
+  {
+    id: "107",
+    name: "Maroon 5",
+    image: "https://e-cdns-images.dzcdn.net/images/artist/3fddad8ceee99fb66209ea2e5a1b2db4/500x500-000000-80-0-0.jpg",
+    genre: "Pop, Pop Rock",
+    bio: "Maroon 5 is an American pop rock band from Los Angeles, California. The group originally formed in 1994 as Kara's Flowers while its members were still in high school."
+  },
+  {
+    id: "108",
+    name: "Post Malone",
+    image: "https://e-cdns-images.dzcdn.net/images/artist/a8d6efcd05801461acf768cdb5f21b5b/500x500-000000-80-0-0.jpg",
+    genre: "Hip Hop, Pop",
+    bio: "Austin Richard Post, known professionally as Post Malone, is an American rapper, singer, songwriter and record producer. Known for his introspective songwriting and laconic vocal style."
+  },
+  {
+    id: "109",
+    name: "Ariana Grande",
+    image: "https://e-cdns-images.dzcdn.net/images/artist/3b99aa38bc4a40c791a47b0eef243587/500x500-000000-80-0-0.jpg",
+    genre: "Pop, R&B",
+    bio: "Ariana Grande-Butera is an American singer, songwriter and actress. Her music, much of which is based on personal experiences, has been the subject of widespread media attention and critical praise."
+  },
+  {
+    id: "110",
+    name: "Taylor Swift",
+    image: "https://e-cdns-images.dzcdn.net/images/artist/ae2e675459ef84f21ad3a8df788f932c/500x500-000000-80-0-0.jpg",
+    genre: "Pop, Country",
+    bio: "Taylor Alison Swift is an American singer-songwriter. Her narrative songwriting, which is often inspired by her personal experiences, has received widespread media coverage and critical praise."
   }
 ];
 
@@ -432,7 +460,7 @@ export const searchArtists = async (query: string) => {
     return data.data.map((artist: any) => ({
       id: artist.id.toString(),
       name: artist.name,
-      image: artist.picture_medium,
+      image: artist.picture_medium || artist.picture || "https://cdn-images.dzcdn.net/images/artist//500x500-000000-80-0-0.jpg",
       genre: "Unknown",
       bio: `${artist.name} is a popular artist with a large following.`
     }));
@@ -443,6 +471,38 @@ export const searchArtists = async (query: string) => {
     return SAMPLE_ARTISTS.filter(artist => 
       artist.name.toLowerCase().includes(query.toLowerCase())
     );
+  }
+};
+
+// Get top artists 
+export const getTopArtists = async (limit = 10) => {
+  try {
+    // First try to get artists from chart tracks
+    const chartTracks = await getChartTracks(50);
+    if (chartTracks && chartTracks.length > 0) {
+      // Extract unique artists from chart tracks
+      const uniqueArtists = new Map();
+      chartTracks.forEach(track => {
+        if (track.artistId && !uniqueArtists.has(track.artistId)) {
+          uniqueArtists.set(track.artistId, {
+            id: track.artistId,
+            name: track.artist,
+            image: track.albumCover,
+            genre: "Pop",
+            bio: `${track.artist} is a popular artist with hits like "${track.title}".`
+          });
+        }
+      });
+      
+      return Array.from(uniqueArtists.values()).slice(0, limit);
+    }
+    
+    // If no chart tracks, use sample artists
+    return SAMPLE_ARTISTS.slice(0, limit);
+  } catch (error) {
+    console.error("Error getting top artists:", error);
+    toast.error("Failed to get top artists, using sample data");
+    return SAMPLE_ARTISTS.slice(0, limit);
   }
 };
 

@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useMusic } from "@/contexts/MusicContext";
 import ArtistCard from "@/components/ArtistCard";
 import SearchInput from "@/components/SearchInput";
@@ -8,6 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SongCard from "@/components/SongCard";
+import * as api from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 const Artists = () => {
   const { artists, songs, searchArtists } = useMusic();
@@ -16,7 +19,45 @@ const Artists = () => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedArtist, setSelectedArtist] = useState<any | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [allArtists, setAllArtists] = useState<any[]>([]);
+
+  // Fetch all artists on component mount
+  useEffect(() => {
+    const fetchAllArtists = async () => {
+      setIsLoading(true);
+      try {
+        // Get top artists from chart tracks
+        const chartTracks = await api.getChartTracks(50);
+        
+        // Extract unique artists from tracks
+        const artistMap = new Map();
+        chartTracks.forEach(track => {
+          if (track.artistId && !artistMap.has(track.artistId)) {
+            artistMap.set(track.artistId, {
+              id: track.artistId,
+              name: track.artist,
+              image: track.albumCover,
+              genre: "Pop",
+              bio: `${track.artist} is a popular artist with hits like "${track.title}".`
+            });
+          }
+        });
+        
+        const uniqueArtists = Array.from(artistMap.values());
+        setAllArtists(uniqueArtists);
+      } catch (error) {
+        console.error("Error fetching artists:", error);
+        toast.error("Failed to load artists data");
+        // Use sample artists as fallback
+        setAllArtists(api.SAMPLE_ARTISTS || []);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAllArtists();
+  }, []);
 
   // Filter songs by artist
   const getArtistSongs = (artistName: string) => {
@@ -110,20 +151,34 @@ const Artists = () => {
       ) : (
         <div>
           <h2 className="text-xl font-display font-semibold mb-4">All Artists</h2>
-          <div className={viewMode === "grid" ? 
-            "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6" : 
-            "space-y-2 bg-card rounded-xl overflow-hidden border border-border p-2"
-          }>
-            {artists.map((artist) => (
-              <div 
-                key={artist.id}
-                onClick={() => openArtistDialog(artist)}
-                className="cursor-pointer"
-              >
-                <ArtistCard artist={artist} variant={viewMode} />
-              </div>
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+              {Array(12).fill(0).map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <Skeleton className="w-full aspect-square rounded-xl mb-2" />
+                  <Skeleton className="w-3/4 h-4 rounded mb-1" />
+                  <Skeleton className="w-1/2 h-3 rounded" />
+                </div>
+              ))}
+            </div>
+          ) : allArtists.length === 0 ? (
+            <p className="text-muted-foreground">No artists available</p>
+          ) : (
+            <div className={viewMode === "grid" ? 
+              "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6" : 
+              "space-y-2 bg-card rounded-xl overflow-hidden border border-border p-2"
+            }>
+              {allArtists.map((artist) => (
+                <div 
+                  key={artist.id}
+                  onClick={() => openArtistDialog(artist)}
+                  className="cursor-pointer"
+                >
+                  <ArtistCard artist={artist} variant={viewMode} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

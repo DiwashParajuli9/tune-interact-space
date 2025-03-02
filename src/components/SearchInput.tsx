@@ -65,7 +65,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
           onChange={handleChange}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="flex-1 h-10 bg-transparent border-0 outline-none text-sm px-2"
+          className="flex-1 h-10 bg-transparent border-0 outline-none text-sm px-2 text-black dark:text-white"
         />
         {query && (
           <button
