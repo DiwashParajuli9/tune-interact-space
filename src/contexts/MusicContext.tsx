@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import * as api from "@/lib/api";
@@ -43,6 +42,7 @@ interface MusicContextType {
   trendingSongs: Song[];
   recentlyPlayed: Song[];
   isLoading: boolean;
+  isMiniPlayer: boolean;
   playSong: (song: Song) => void;
   pauseSong: () => void;
   nextSong: () => void;
@@ -55,6 +55,7 @@ interface MusicContextType {
   searchArtists: (query: string) => Promise<Artist[]>;
   getArtistSongs: (artistId: string) => Promise<Song[]>;
   addToRecentlyPlayed: (song: Song) => void;
+  toggleMiniPlayer?: () => void;
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -156,6 +157,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [isMiniPlayer, setIsMiniPlayer] = useState(false); // Add the state for mini player
   
   // Audio element reference
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -636,6 +638,10 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const toggleMiniPlayer = () => {
+    setIsMiniPlayer(prev => !prev);
+  };
+
   return (
     <MusicContext.Provider
       value={{
@@ -650,6 +656,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         trendingSongs,
         recentlyPlayed,
         isLoading,
+        isMiniPlayer,
         playSong,
         pauseSong,
         nextSong,
@@ -662,6 +669,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         searchArtists,
         getArtistSongs,
         addToRecentlyPlayed,
+        toggleMiniPlayer,
       }}
     >
       {children}
