@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Outlet, useLocation, Link } from "react-router-dom";
 import { Home, Library, Users, MessageSquare, ListMusic, LayoutGrid, Menu, X, Search, Music2, Disc3, Mic2, Heart } from "lucide-react";
@@ -84,10 +85,11 @@ const Layout: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-gradient-to-b from-gray-900 to-black text-white">
+    <div className="h-screen overflow-hidden bg-gradient-to-b from-gray-900 to-black text-white">
       {/* Top navigation bar */}
-      <div className="h-16 min-h-[4rem] border-b border-white/10 flex items-center justify-between px-4 z-40 relative bg-black/40 backdrop-blur-lg">
+      <div className="h-16 border-b border-white/10 flex items-center justify-between px-4 z-40 relative bg-black/40 backdrop-blur-lg">
         <div className="flex items-center">
+          {/* Mobile menu button */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors mr-3 lg:hidden"
@@ -95,6 +97,7 @@ const Layout: React.FC = () => {
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           
+          {/* Logo */}
           <Link to="/" className="hidden md:flex items-center gap-2">
             <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
               <Music2 size={16} className="text-white" />
@@ -111,6 +114,7 @@ const Layout: React.FC = () => {
           </Link>
         </div>
         
+        {/* Search Bar */}
         <div className="flex-1 max-w-xl px-6">
           <SearchInput 
             placeholder="Search for songs, artists, albums..." 
@@ -119,6 +123,7 @@ const Layout: React.FC = () => {
           />
         </div>
         
+        {/* User Profile */}
         <div className="flex items-center">
           <Avatar className="h-8 w-8 border border-white/10">
             <AvatarImage src="/placeholder.svg" alt="User" />
@@ -129,7 +134,8 @@ const Layout: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-1 h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex h-[calc(100vh-64px)]">
+        {/* Sidebar - transformed into a side panel */}
         <div
           className={cn(
             "fixed inset-y-16 left-0 z-30 w-64 transition-transform duration-300 ease-in-out bg-black/60 backdrop-blur-lg border-r border-white/10",
@@ -174,6 +180,7 @@ const Layout: React.FC = () => {
               </nav>
             </div>
             
+            {/* Your Library Section */}
             <div className="px-4 mb-6">
               <h3 className="text-xs uppercase tracking-wider text-white/50 mb-3 px-2">
                 Your Library
@@ -207,6 +214,7 @@ const Layout: React.FC = () => {
               </div>
             </div>
             
+            {/* Search Results Section - only shows when searching */}
             {isSearching && searchResults.length > 0 && (
               <div className="px-4 mb-6">
                 <h3 className="text-xs uppercase tracking-wider text-white/50 mb-3 px-2">
@@ -247,10 +255,13 @@ const Layout: React.FC = () => {
           </ScrollArea>
         </div>
 
-        <main className="flex-1 w-full h-full overflow-y-auto overflow-x-hidden bg-gradient-to-b from-gray-900/50 to-black">
-          <div className="relative h-full">
+        {/* Main content area */}
+        <main className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-900/50 to-black">
+          <div className="relative">
+            {/* Semi-transparent overlay at the top for visual effect */}
             <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/40 to-transparent pointer-events-none"></div>
             
+            {/* Content container */}
             <div className="px-4 py-6 md:px-8 lg:px-10 max-w-7xl mx-auto pb-24">
               <Outlet />
             </div>
@@ -258,6 +269,7 @@ const Layout: React.FC = () => {
         </main>
       </div>
 
+      {/* Overlay for mobile sidebar */}
       {sidebarOpen && isMobile && (
         <div
           className="fixed inset-0 z-20 bg-black/50 backdrop-blur-sm lg:hidden"
@@ -265,8 +277,9 @@ const Layout: React.FC = () => {
         ></div>
       )}
 
+      {/* Music player */}
       <div className={cn(
-        "fixed bottom-0 left-0 right-0 transform transition-transform duration-300 w-full",
+        "fixed bottom-0 left-0 right-0 transform transition-transform duration-300",
         currentSong ? "translate-y-0" : "translate-y-full",
       )}>
         <MusicPlayer />
