@@ -1,13 +1,13 @@
 
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './ui/sidebar';
-import { MusicPlayer } from './MusicPlayer';
+import MusicPlayer from './MusicPlayer';
 import AudioPlayer from './AudioPlayer';
-import { useMusicContext } from '@/contexts/MusicContext';
+import { useMusic } from '@/contexts/MusicContext';
 import ProfileDialog from './ProfileDialog';
 
 const Layout = () => {
-  const { currentSong, isPlaying, isMiniPlayer } = useMusicContext();
+  const { currentSong, isPlaying, isMiniPlayer } = useMusic();
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
