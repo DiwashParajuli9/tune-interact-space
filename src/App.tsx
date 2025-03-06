@@ -14,6 +14,7 @@ import Messages from "@/pages/Messages";
 import NotFound from "@/pages/NotFound";
 import AudioPlayer from "@/components/AudioPlayer";
 import MusicPlayer from "@/components/MusicPlayer";
+import { AuthButtons } from "@/components/AuthButtons";
 import "./App.css";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,9 @@ function App() {
         <MessageProvider>
           <TooltipProvider>
             <BrowserRouter>
+              <div className="absolute top-4 right-4 z-50">
+                <AuthButtons />
+              </div>
               <Routes>
                 <Route path="/" element={<Layout />}>
                   <Route index element={<Index />} />
