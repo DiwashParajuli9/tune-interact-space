@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from "react";
-import { Outlet, useLocation, Link } from "react-router-dom";
+import { Outlet, useLocation, Link, useNavigate } from "react-router-dom";
 import { Home, Library, Users, MessageSquare, ListMusic, LayoutGrid, Menu, X, Search, Music2, Disc3, Mic2, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -9,15 +8,25 @@ import { useMusic } from "@/contexts/MusicContext";
 import SearchInput from "@/components/SearchInput";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useUser } from "@/contexts/UserContext";
 
 const Layout: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { currentSong, songs, searchSongs } = useMusic();
+  const { user } = useUser();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Redirect to landing if not authenticated
+  useEffect(() => {
+    if (!user) {
+      navigate("/landing");
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     if (isMobile) {
@@ -27,7 +36,6 @@ const Layout: React.FC = () => {
     }
   }, [isMobile]);
 
-  // Close sidebar on mobile when changing routes
   useEffect(() => {
     if (isMobile) {
       setSidebarOpen(false);
