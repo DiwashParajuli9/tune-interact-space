@@ -1,6 +1,7 @@
+
 import React, { useEffect, useState } from "react";
 import { Outlet, useLocation, Link, useNavigate } from "react-router-dom";
-import { Home, Library, Users, MessageSquare, ListMusic, LayoutGrid, Menu, X, Search, Music2, Disc3, Mic2, Heart } from "lucide-react";
+import { Home, Library, Users, MessageSquare, ListMusic, LayoutGrid, Menu, X, Search, Music2, Disc3, Mic2, Heart, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MusicPlayer from "./MusicPlayer";
@@ -9,6 +10,13 @@ import SearchInput from "@/components/SearchInput";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/contexts/UserContext";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 const Layout: React.FC = () => {
   const location = useLocation();
@@ -133,12 +141,32 @@ const Layout: React.FC = () => {
         
         {/* User Profile */}
         <div className="flex items-center">
-          <Avatar className="h-8 w-8 border border-white/10">
-            <AvatarImage src="/placeholder.svg" alt="User" />
-            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-xs">
-              YU
-            </AvatarFallback>
-          </Avatar>
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                  <Avatar className="h-8 w-8 border border-white/10">
+                    <AvatarImage src={user.photoURL || ""} alt={user.name} />
+                    <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-xs">
+                      {user.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate("/profile")}>
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link to="/profile">
+              <Button variant="ghost" size="sm">
+                <User size={20} />
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -184,6 +212,31 @@ const Layout: React.FC = () => {
                       </Link>
                     </li>
                   ))}
+                  {/* Add Profile to sidebar navigation */}
+                  <li>
+                    <Link
+                      to="/profile"
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                        location.pathname === "/profile"
+                          ? "bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-white/10 text-white"
+                          : "text-white/70 hover:text-white hover:bg-white/5"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center",
+                        location.pathname === "/profile"
+                          ? "bg-gradient-to-br from-indigo-500 to-purple-500 text-white"
+                          : "bg-white/5 text-white/70"
+                      )}>
+                        <User size={16} />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">Profile</div>
+                        <div className="text-xs text-white/50">Account settings</div>
+                      </div>
+                    </Link>
+                  </li>
                 </ul>
               </nav>
             </div>

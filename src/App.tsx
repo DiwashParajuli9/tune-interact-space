@@ -11,30 +11,22 @@ import Library from "@/pages/Library";
 import Playlists from "@/pages/Playlists";
 import Artists from "@/pages/Artists";
 import Messages from "@/pages/Messages";
+import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
 import Landing from "@/pages/Landing";
 import AudioPlayer from "@/components/AudioPlayer";
 import MusicPlayer from "@/components/MusicPlayer";
-import { AuthButtons } from "@/components/AuthButtons";
-import { useUser } from "@/contexts/UserContext";
 import "./App.css";
 
 const queryClient = new QueryClient();
 
 function App() {
-  const { user } = useUser();
-
   return (
     <QueryClientProvider client={queryClient}>
       <MusicProvider>
         <MessageProvider>
           <TooltipProvider>
             <BrowserRouter>
-              {user && (
-                <div className="absolute top-4 right-4 z-50">
-                  <AuthButtons />
-                </div>
-              )}
               <Routes>
                 <Route path="/landing" element={<Landing />} />
                 <Route path="/" element={<Layout />}>
@@ -43,6 +35,7 @@ function App() {
                   <Route path="/playlists" element={<Playlists />} />
                   <Route path="/artists" element={<Artists />} />
                   <Route path="/messages" element={<Messages />} />
+                  <Route path="/profile" element={<Profile />} />
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Routes>
