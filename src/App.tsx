@@ -1,11 +1,10 @@
 
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MusicProvider } from "@/contexts/MusicContext";
 import { MessageProvider } from "@/contexts/MessageContext";
-import { useUser } from "@/contexts/UserContext";
 import Layout from "@/components/Layout";
 import Index from "@/pages/Index";
 import Library from "@/pages/Library";
@@ -17,17 +16,13 @@ import Landing from "@/pages/Landing";
 import AudioPlayer from "@/components/AudioPlayer";
 import MusicPlayer from "@/components/MusicPlayer";
 import { AuthButtons } from "@/components/AuthButtons";
+import { useUser } from "@/contexts/UserContext";
 import "./App.css";
 
 const queryClient = new QueryClient();
 
 function App() {
-  const { user, loading } = useUser();
-
-  // Show loading state while Clerk is initializing
-  if (loading) {
-    return <div className="flex h-screen w-screen items-center justify-center">Loading...</div>;
-  }
+  const { user } = useUser();
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -41,11 +36,8 @@ function App() {
                 </div>
               )}
               <Routes>
-                <Route path="/landing" element={!user ? <Landing /> : <Navigate to="/" />} />
-                <Route 
-                  path="/" 
-                  element={user ? <Layout /> : <Navigate to="/landing" />}
-                >
+                <Route path="/landing" element={<Landing />} />
+                <Route path="/" element={<Layout />}>
                   <Route index element={<Index />} />
                   <Route path="/library" element={<Library />} />
                   <Route path="/playlists" element={<Playlists />} />
