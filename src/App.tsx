@@ -12,6 +12,7 @@ import Playlists from "@/pages/Playlists";
 import Artists from "@/pages/Artists";
 import Messages from "@/pages/Messages";
 import Profile from "@/pages/Profile";
+import AdminDashboard from "@/pages/AdminDashboard";
 import NotFound from "@/pages/NotFound";
 import Landing from "@/pages/Landing";
 import AudioPlayer from "@/components/AudioPlayer";
@@ -36,6 +37,7 @@ function App() {
                   <Route path="/artists" element={<Artists />} />
                   <Route path="/messages" element={<Messages />} />
                   <Route path="/profile" element={<Profile />} />
+                  <Route path="/admin" element={<AdminDashboard />} />
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Routes>

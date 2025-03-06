@@ -6,6 +6,7 @@ type User = {
   name: string;
   email: string;
   photoURL?: string;
+  isAdmin?: boolean;
 } | null;
 
 type UserContextType = {
@@ -40,13 +41,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = async () => {
     try {
-      // Mock Google sign-in for now
-      // In a real implementation, this would use Google's OAuth flow
+      // For demo purposes, we'll create two user types:
+      // 1. An admin user with email admin@example.com
+      // 2. A regular user with any other email
+      
+      const email = prompt("Enter your email (use admin@example.com for admin access)") || "";
+      const isAdmin = email.toLowerCase() === "admin@example.com";
+      
       const mockUser = {
-        id: "google-user-123",
-        name: "Google User",
-        email: "user@example.com",
+        id: isAdmin ? "admin-user-123" : "google-user-123",
+        name: isAdmin ? "Admin User" : "Regular User",
+        email: email,
         photoURL: "https://via.placeholder.com/150",
+        isAdmin: isAdmin
       };
       
       setUser(mockUser);
