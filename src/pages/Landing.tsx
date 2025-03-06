@@ -3,12 +3,12 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/contexts/UserContext";
-import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { Music2, Headphones, ListMusic, Sparkles } from "lucide-react";
+import { SignInButton } from "@clerk/clerk-react";
 
 const Landing = () => {
   const navigate = useNavigate();
-  const { user, signInWithGoogle } = useUser();
+  const { user } = useUser();
   
   // If user is already logged in, redirect to dashboard
   React.useEffect(() => {
@@ -16,15 +16,6 @@ const Landing = () => {
       navigate("/");
     }
   }, [user, navigate]);
-  
-  const handleGoogleAuth = async () => {
-    try {
-      await signInWithGoogle();
-      navigate("/");
-    } catch (error) {
-      console.error("Google authentication failed:", error);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white">
@@ -42,14 +33,14 @@ const Landing = () => {
           Discover your unique sound journey with our revolutionary AI-powered music experience.
         </p>
         
-        <Button 
-          size="lg"
-          className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 border-0 text-white px-8 py-6 text-lg flex items-center gap-3"
-          onClick={handleGoogleAuth}
-        >
-          <GoogleIcon />
-          Sign in with Google
-        </Button>
+        <SignInButton mode="modal">
+          <Button 
+            size="lg"
+            className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 border-0 text-white px-8 py-6 text-lg flex items-center gap-3"
+          >
+            Sign in to get started
+          </Button>
+        </SignInButton>
         
         <p className="text-sm text-white/50 mt-4">
           By continuing, you agree to our Terms of Service and Privacy Policy

@@ -1,5 +1,6 @@
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext } from "react";
+import { useUser as useClerkUser, useAuth } from "@clerk/clerk-react";
 
 type User = {
   id: string;
@@ -26,46 +27,33 @@ export const useUser = () => {
 };
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User>(null);
-  const [loading, setLoading] = useState(true);
+  const { user: clerkUser, isLoaded } = useClerkUser();
+  const { signOut: clerkSignOut } = useAuth();
 
-  useEffect(() => {
-    // Check if user is stored in localStorage
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
-  }, []);
+  // Transform Clerk user to our User type
+  const user: User = clerkUser
+    ? {
+        id: clerkUser.id,
+        name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'User',
+        email: clerkUser.primaryEmailAddress?.emailAddress || '',
+        photoURL: clerkUser.imageUrl,
+      }
+    : null;
 
   const signInWithGoogle = async () => {
-    try {
-      // Mock Google sign-in for now
-      // In a real implementation, this would use Google's OAuth flow
-      const mockUser = {
-        id: "google-user-123",
-        name: "Google User",
-        email: "user@example.com",
-        photoURL: "https://via.placeholder.com/150",
-      };
-      
-      setUser(mockUser);
-      localStorage.setItem("user", JSON.stringify(mockUser));
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Error signing in with Google:", error);
-      return Promise.reject(error);
-    }
+    // This is handled by Clerk's SignIn component
+    return Promise.resolve();
   };
 
   const signOut = async () => {
-    setUser(null);
-    localStorage.removeItem("user");
+    if (clerkSignOut) {
+      await clerkSignOut();
+    }
     return Promise.resolve();
   };
 
   return (
-    <UserContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+    <UserContext.Provider value={{ user, loading: !isLoaded, signInWithGoogle, signOut }}>
       {children}
     </UserContext.Provider>
   );
