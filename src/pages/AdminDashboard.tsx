@@ -1,20 +1,32 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
+import { useMusic } from "@/contexts/MusicContext";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BarChart, Users, Music, MessageSquare, Bell, Settings, ShieldAlert } from "lucide-react";
+import { BarChart, Users, Music, MessageSquare, Bell, Settings, ShieldAlert, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const AdminDashboard = () => {
   const { user } = useUser();
+  const { songs, trendingSongs, isLoading } = useMusic();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
+  
+  const [newSong, setNewSong] = useState({
+    title: "",
+    artist: "",
+    albumCover: "",
+    audioSrc: "",
+    duration: 0,
+  });
 
-  // If user is not an admin, redirect to home
+  const [manageSongs, setManageSongs] = useState([...songs]);
+
   React.useEffect(() => {
     if (user && !user.isAdmin) {
       toast.error("You don't have permission to access the admin dashboard");
@@ -23,6 +35,43 @@ const AdminDashboard = () => {
       navigate("/landing");
     }
   }, [user, navigate]);
+
+  const handleRemoveSong = (songId: string) => {
+    setManageSongs(prev => prev.filter(song => song.id !== songId));
+    toast.success("Song removed successfully");
+  };
+
+  const handleAddSong = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newSong.title || !newSong.artist || !newSong.albumCover || !newSong.audioSrc) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+    
+    const song = {
+      id: `song-${Date.now()}`,
+      title: newSong.title,
+      artist: newSong.artist,
+      albumCover: newSong.albumCover,
+      audioSrc: newSong.audioSrc,
+      duration: newSong.duration || 180,
+      artistId: `artist-${Date.now()}`,
+      albumId: `album-${Date.now()}`,
+    };
+    
+    setManageSongs(prev => [song, ...prev]);
+    
+    setNewSong({
+      title: "",
+      artist: "",
+      albumCover: "",
+      audioSrc: "",
+      duration: 0,
+    });
+    
+    toast.success("Song added successfully");
+  };
 
   if (!user || !user.isAdmin) {
     return (
@@ -42,15 +91,13 @@ const AdminDashboard = () => {
     );
   }
 
-  // Mock data for the dashboard
   const stats = [
     { title: "Total Users", value: "1,234", icon: Users, color: "bg-blue-500" },
-    { title: "Total Songs", value: "5,678", icon: Music, color: "bg-purple-500" },
+    { title: "Total Songs", value: manageSongs.length.toString(), icon: Music, color: "bg-purple-500" },
     { title: "Messages", value: "932", icon: MessageSquare, color: "bg-green-500" },
     { title: "Reports", value: "28", icon: ShieldAlert, color: "bg-red-500" },
   ];
 
-  // Mock users data
   const recentUsers = [
     { id: "1", name: "Jane Cooper", email: "jane@example.com", status: "active" },
     { id: "2", name: "Robert Fox", email: "robert@example.com", status: "inactive" },
@@ -101,6 +148,7 @@ const AdminDashboard = () => {
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="content">Content</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="songs">Manage Songs</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-4">
@@ -207,6 +255,134 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="songs" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Add New Song</CardTitle>
+              <CardDescription>
+                Add a new song to your music platform
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleAddSong} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Song Title</Label>
+                    <Input
+                      id="title"
+                      value={newSong.title}
+                      onChange={(e) => setNewSong({ ...newSong, title: e.target.value })}
+                      placeholder="Enter song title"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="artist">Artist</Label>
+                    <Input
+                      id="artist"
+                      value={newSong.artist}
+                      onChange={(e) => setNewSong({ ...newSong, artist: e.target.value })}
+                      placeholder="Enter artist name"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="albumCover">Album Cover URL</Label>
+                    <Input
+                      id="albumCover"
+                      value={newSong.albumCover}
+                      onChange={(e) => setNewSong({ ...newSong, albumCover: e.target.value })}
+                      placeholder="Enter album cover URL"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="audioSrc">Audio Source URL</Label>
+                    <Input
+                      id="audioSrc"
+                      value={newSong.audioSrc}
+                      onChange={(e) => setNewSong({ ...newSong, audioSrc: e.target.value })}
+                      placeholder="Enter audio source URL"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="duration">Duration (seconds)</Label>
+                    <Input
+                      id="duration"
+                      type="number"
+                      value={newSong.duration || ""}
+                      onChange={(e) => setNewSong({ ...newSong, duration: Number(e.target.value) })}
+                      placeholder="Enter duration in seconds"
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="mt-4">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Song
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Manage Songs</CardTitle>
+              <CardDescription>
+                View and manage all songs on your platform
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-md overflow-hidden">
+                <div className="grid grid-cols-12 bg-muted p-4 font-medium text-sm">
+                  <div className="col-span-1">Cover</div>
+                  <div className="col-span-4">Title</div>
+                  <div className="col-span-3">Artist</div>
+                  <div className="col-span-2">Duration</div>
+                  <div className="col-span-2">Actions</div>
+                </div>
+                
+                <div className="divide-y">
+                  {isLoading ? (
+                    <div className="p-4 text-center">Loading songs...</div>
+                  ) : manageSongs.length === 0 ? (
+                    <div className="p-4 text-center">No songs available</div>
+                  ) : (
+                    manageSongs.map((song) => (
+                      <div key={song.id} className="grid grid-cols-12 p-4 items-center">
+                        <div className="col-span-1">
+                          <img src={song.albumCover} alt={song.title} className="w-10 h-10 object-cover rounded" />
+                        </div>
+                        <div className="col-span-4 font-medium truncate">{song.title}</div>
+                        <div className="col-span-3 text-muted-foreground truncate">{song.artist}</div>
+                        <div className="col-span-2">
+                          {Math.floor(song.duration / 60)}:{(song.duration % 60).toString().padStart(2, '0')}
+                        </div>
+                        <div className="col-span-2">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleRemoveSong(song.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Remove</span>
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button variant="outline">Export Songs List</Button>
+              <div className="text-sm text-muted-foreground">
+                Total: {manageSongs.length} songs
+              </div>
+            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>

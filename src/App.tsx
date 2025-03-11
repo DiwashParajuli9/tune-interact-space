@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MusicProvider } from "@/contexts/MusicContext";
 import { MessageProvider } from "@/contexts/MessageContext";
+import { UserProvider } from "@/contexts/UserContext";
 import Layout from "@/components/Layout";
 import Index from "@/pages/Index";
 import Library from "@/pages/Library";
@@ -24,30 +25,32 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <MusicProvider>
-        <MessageProvider>
-          <TooltipProvider>
-            <BrowserRouter>
-              <Routes>
-                <Route path="/landing" element={<Landing />} />
-                <Route path="/" element={<Layout />}>
-                  <Route index element={<Index />} />
-                  <Route path="/library" element={<Library />} />
-                  <Route path="/playlists" element={<Playlists />} />
-                  <Route path="/artists" element={<Artists />} />
-                  <Route path="/messages" element={<Messages />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/admin" element={<AdminDashboard />} />
-                  <Route path="*" element={<NotFound />} />
-                </Route>
-              </Routes>
-              <AudioPlayer />
-              <MusicPlayer />
-              <Toaster position="top-right" />
-            </BrowserRouter>
-          </TooltipProvider>
-        </MessageProvider>
-      </MusicProvider>
+      <UserProvider>
+        <MusicProvider>
+          <MessageProvider>
+            <TooltipProvider>
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/landing" element={<Landing />} />
+                  <Route path="/" element={<Layout />}>
+                    <Route index element={<Index />} />
+                    <Route path="/library" element={<Library />} />
+                    <Route path="/playlists" element={<Playlists />} />
+                    <Route path="/artists" element={<Artists />} />
+                    <Route path="/messages" element={<Messages />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/admin" element={<AdminDashboard />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Route>
+                </Routes>
+                <AudioPlayer />
+                <MusicPlayer />
+                <Toaster position="top-right" />
+              </BrowserRouter>
+            </TooltipProvider>
+          </MessageProvider>
+        </MusicProvider>
+      </UserProvider>
     </QueryClientProvider>
   );
 }
