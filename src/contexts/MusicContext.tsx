@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import * as api from "@/lib/api";
@@ -55,6 +54,8 @@ interface MusicContextType {
   searchArtists: (query: string) => Promise<Artist[]>;
   getArtistSongs: (artistId: string) => Promise<Song[]>;
   addToRecentlyPlayed: (song: Song) => void;
+  addSong: (song: Song) => Promise<void>;
+  removeSong: (songId: string) => Promise<void>;
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -636,6 +637,84 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const addSong = async (song: Song): Promise<void> => {
+    if (!song || !song.id) {
+      toast.error("Invalid song data");
+      return;
+    }
+    
+    try {
+      // Add song to the songs array
+      setSongs(prevSongs => {
+        // Check if song with the same ID already exists
+        const exists = prevSongs.some(s => s.id === song.id);
+        if (exists) {
+          toast.error("Song with this ID already exists");
+          return prevSongs;
+        }
+        return [song, ...prevSongs];
+      });
+      
+      // If this is a trending song, add it to trending songs as well
+      setTrendingSongs(prevTrending => {
+        // Only add to trending if it's not already there and limit to 10
+        const exists = prevTrending.some(s => s.id === song.id);
+        if (exists) return prevTrending;
+        return [song, ...prevTrending].slice(0, 10);
+      });
+      
+      toast.success(`Song "${song.title}" added successfully`);
+    } catch (error) {
+      console.error("Failed to add song:", error);
+      toast.error("Failed to add song");
+      throw error;
+    }
+  };
+  
+  const removeSong = async (songId: string): Promise<void> => {
+    if (!songId) {
+      toast.error("Invalid song ID");
+      return;
+    }
+    
+    try {
+      // Remove song from songs array
+      setSongs(prevSongs => prevSongs.filter(song => song.id !== songId));
+      
+      // Remove from trending songs if present
+      setTrendingSongs(prevTrending => prevTrending.filter(song => song.id !== songId));
+      
+      // Remove from queue if present
+      setQueue(prevQueue => prevQueue.filter(song => song.id !== songId));
+      
+      // Remove from recently played if present
+      setRecentlyPlayed(prevRecent => prevRecent.filter(song => song.id !== songId));
+      
+      // Remove from all playlists
+      setPlaylists(prevPlaylists => 
+        prevPlaylists.map(playlist => ({
+          ...playlist,
+          songs: playlist.songs.filter(song => song.id !== songId)
+        }))
+      );
+      
+      // If it's the current song, stop playing and clear current song
+      if (currentSong && currentSong.id === songId) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+        setIsPlaying(false);
+        setCurrentSong(null);
+      }
+      
+      toast.success("Song removed successfully");
+    } catch (error) {
+      console.error("Failed to remove song:", error);
+      toast.error("Failed to remove song");
+      throw error;
+    }
+  };
+
   return (
     <MusicContext.Provider
       value={{
@@ -662,6 +741,8 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         searchArtists,
         getArtistSongs,
         addToRecentlyPlayed,
+        addSong,
+        removeSong,
       }}
     >
       {children}
