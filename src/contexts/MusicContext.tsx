@@ -536,14 +536,50 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     setIsLoading(true);
     try {
-      const results = await api.searchTracks(query);
-      return results && results.length > 0 ? results : SAMPLE_TRACKS.filter(track => 
+      // First search in our existing songs array (which includes manually added songs)
+      const localResults = songs.filter(track => 
+        track.title.toLowerCase().includes(query.toLowerCase()) || 
+        track.artist.toLowerCase().includes(query.toLowerCase())
+      );
+      
+      // Then try API search
+      let apiResults: Song[] = [];
+      try {
+        apiResults = await api.searchTracks(query);
+      } catch (error) {
+        console.error("Error searching songs via API:", error);
+        toast.error("Search API failed, using local data only");
+      }
+      
+      // Combine results, removing duplicates (based on id)
+      const combinedIds = new Set();
+      const combinedResults: Song[] = [];
+      
+      // Add local results first (prioritize them)
+      localResults.forEach(track => {
+        if (!combinedIds.has(track.id)) {
+          combinedIds.add(track.id);
+          combinedResults.push(track);
+        }
+      });
+      
+      // Then add API results
+      if (apiResults && apiResults.length > 0) {
+        apiResults.forEach(track => {
+          if (!combinedIds.has(track.id)) {
+            combinedIds.add(track.id);
+            combinedResults.push(track);
+          }
+        });
+      }
+      
+      return combinedResults.length > 0 ? combinedResults : SAMPLE_TRACKS.filter(track => 
         track.title.toLowerCase().includes(query.toLowerCase()) || 
         track.artist.toLowerCase().includes(query.toLowerCase())
       );
     } catch (error) {
       console.error("Error searching songs:", error);
-      toast.error("Search API failed, using sample data");
+      toast.error("Search failed, using sample data");
       // Filter sample tracks as fallback
       return SAMPLE_TRACKS.filter(track => 
         track.title.toLowerCase().includes(query.toLowerCase()) || 
@@ -757,3 +793,4 @@ export const useMusic = () => {
   }
   return context;
 };
+

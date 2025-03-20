@@ -7,14 +7,16 @@ interface SearchInputProps {
   placeholder?: string;
   onSearch: (query: string) => void;
   className?: string;
+  initialQuery?: string;
 }
 
 const SearchInput: React.FC<SearchInputProps> = ({
   placeholder = "Search...",
   onSearch,
   className,
+  initialQuery = "",
 }) => {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,6 +46,14 @@ const SearchInput: React.FC<SearchInputProps> = ({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  // Apply the initial query if provided
+  useEffect(() => {
+    if (initialQuery && initialQuery !== query) {
+      setQuery(initialQuery);
+      onSearch(initialQuery);
+    }
+  }, [initialQuery, onSearch]);
 
   return (
     <div
