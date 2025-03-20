@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
@@ -31,7 +30,7 @@ const AdminDashboard = () => {
   const [manageSongs, setManageSongs] = useState([]);
   const audioFileInputRef = useRef(null);
   const coverFileInputRef = useRef(null);
-  const [coverPreview, setCoverPreview] = useState(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (songs?.length > 0) {
@@ -199,8 +198,8 @@ const AdminDashboard = () => {
     });
   };
 
-  const handleCoverFileUpload = (e) => {
-    const file = e.target.files[0];
+  const handleCoverFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
@@ -210,11 +209,13 @@ const AdminDashboard = () => {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const coverDataUrl = event.target.result;
+      const coverDataUrl = event.target?.result as string;
+      
       setNewSong(prev => ({
         ...prev,
         albumCover: coverDataUrl
       }));
+      
       setCoverPreview(coverDataUrl);
       toast.success("Cover image uploaded");
     };
