@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
 import { useMusic } from "@/contexts/MusicContext";
@@ -9,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BarChart, Users, Music, MessageSquare, Bell, Settings, ShieldAlert, Plus, Trash2, Loader2 } from "lucide-react";
+import { BarChart, Users, Music, MessageSquare, Bell, Settings, ShieldAlert, Plus, Trash2, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { searchTracks } from "@/lib/api";
 
@@ -29,6 +28,7 @@ const AdminDashboard = () => {
   });
 
   const [manageSongs, setManageSongs] = useState([]);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (songs?.length > 0) {
@@ -47,10 +47,8 @@ const AdminDashboard = () => {
 
   const handleRemoveSong = async (songId) => {
     try {
-      // Remove from context
       await removeSong(songId);
       
-      // Update local state
       setManageSongs(prev => prev.filter(song => song.id !== songId));
       
       toast.success("Song removed successfully");
@@ -82,10 +80,8 @@ const AdminDashboard = () => {
         albumId: `album-${Date.now()}`,
       };
       
-      // Add to context
       await addSong(song);
       
-      // Update local state
       setManageSongs(prev => [song, ...prev]);
       
       setNewSong({
@@ -123,6 +119,80 @@ const AdminDashboard = () => {
       console.error("Error fetching sample data:", error);
       toast.error("Failed to load sample data");
     }
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('audio/')) {
+      toast.error("Please select an audio file");
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    const audioSrc = URL.createObjectURL(file);
+    
+    const fileName = file.name.replace(/\.[^/.]+$/, "");
+    let title = fileName;
+    let artist = "Unknown Artist";
+    
+    if (fileName.includes(" - ")) {
+      const parts = fileName.split(" - ");
+      artist = parts[0].trim();
+      title = parts.slice(1).join(" - ").trim();
+    }
+    
+    const defaultCover = "https://placehold.co/400x400/4338ca/ffffff?text=Music";
+    
+    const audio = new Audio(audioSrc);
+    
+    audio.addEventListener('loadedmetadata', async () => {
+      try {
+        const duration = Math.round(audio.duration);
+        
+        const song = {
+          id: `song-${Date.now()}`,
+          title,
+          artist,
+          albumCover: defaultCover,
+          audioSrc,
+          duration,
+          artistId: `artist-${Date.now()}`,
+          albumId: `album-${Date.now()}`,
+        };
+        
+        setNewSong({
+          title,
+          artist,
+          albumCover: defaultCover,
+          audioSrc,
+          duration,
+        });
+        
+        toast.success("Audio file loaded successfully", {
+          description: "You can edit the details before adding the song",
+        });
+      } catch (error) {
+        console.error("Error processing audio file:", error);
+        toast.error("Failed to process audio file");
+        URL.revokeObjectURL(audioSrc);
+      } finally {
+        setIsSubmitting(false);
+      }
+    });
+    
+    audio.addEventListener('error', () => {
+      console.error("Error loading audio file");
+      toast.error("Failed to load audio file");
+      URL.revokeObjectURL(audioSrc);
+      setIsSubmitting(false);
+    });
+  };
+
+  const triggerFileUpload = () => {
+    fileInputRef.current.click();
   };
 
   if (!user || !user.isAdmin) {
@@ -319,6 +389,41 @@ const AdminDashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                accept="audio/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              
+              <div className="mb-6">
+                <div className="border border-dashed rounded-md p-8 flex flex-col items-center justify-center">
+                  <Upload className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Upload from your computer</h3>
+                  <p className="text-sm text-muted-foreground text-center mb-4">
+                    Upload MP3, WAV, or other audio files directly from your device
+                  </p>
+                  <Button 
+                    type="button" 
+                    onClick={triggerFileUpload}
+                    disabled={isSubmitting}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        Select Audio File
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
               <form onSubmit={handleAddSong} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -359,7 +464,13 @@ const AdminDashboard = () => {
                       onChange={(e) => setNewSong({ ...newSong, audioSrc: e.target.value })}
                       placeholder="Enter audio source URL"
                       required
+                      disabled={newSong.audioSrc && newSong.audioSrc.startsWith('blob:')}
                     />
+                    {newSong.audioSrc && newSong.audioSrc.startsWith('blob:') && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Using uploaded audio file
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="duration">Duration (seconds)</Label>
