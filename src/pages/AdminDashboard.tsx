@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BarChart, Users, Music, MessageSquare, Bell, Settings, ShieldAlert, Plus, Trash2, Loader2, Upload } from "lucide-react";
+import { BarChart, Users, Music, MessageSquare, Bell, Settings, ShieldAlert, Plus, Trash2, Loader2, Upload, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { searchTracks } from "@/lib/api";
 
@@ -28,7 +29,9 @@ const AdminDashboard = () => {
   });
 
   const [manageSongs, setManageSongs] = useState([]);
-  const fileInputRef = useRef(null);
+  const audioFileInputRef = useRef(null);
+  const coverFileInputRef = useRef(null);
+  const [coverPreview, setCoverPreview] = useState(null);
 
   useEffect(() => {
     if (songs?.length > 0) {
@@ -92,6 +95,8 @@ const AdminDashboard = () => {
         duration: 180,
       });
       
+      setCoverPreview(null);
+      
       toast.success("Song added successfully");
     } catch (error) {
       console.error("Error adding song:", error);
@@ -113,6 +118,7 @@ const AdminDashboard = () => {
           audioSrc: sample.audioSrc,
           duration: sample.duration,
         });
+        setCoverPreview(sample.albumCover);
         toast.success("Sample data loaded");
       }
     } catch (error) {
@@ -121,7 +127,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleFileUpload = (e) => {
+  const handleAudioFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -171,6 +177,8 @@ const AdminDashboard = () => {
           duration,
         });
         
+        setCoverPreview(defaultCover);
+        
         toast.success("Audio file loaded successfully", {
           description: "You can edit the details before adding the song",
         });
@@ -191,8 +199,39 @@ const AdminDashboard = () => {
     });
   };
 
-  const triggerFileUpload = () => {
-    fileInputRef.current.click();
+  const handleCoverFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const coverDataUrl = event.target.result;
+      setNewSong(prev => ({
+        ...prev,
+        albumCover: coverDataUrl
+      }));
+      setCoverPreview(coverDataUrl);
+      toast.success("Cover image uploaded");
+    };
+    
+    reader.onerror = () => {
+      toast.error("Failed to read image file");
+    };
+    
+    reader.readAsDataURL(file);
+  };
+
+  const triggerAudioFileUpload = () => {
+    audioFileInputRef.current.click();
+  };
+
+  const triggerCoverFileUpload = () => {
+    coverFileInputRef.current.click();
   };
 
   if (!user || !user.isAdmin) {
@@ -391,9 +430,17 @@ const AdminDashboard = () => {
             <CardContent>
               <input 
                 type="file" 
-                ref={fileInputRef}
+                ref={audioFileInputRef}
                 accept="audio/*"
-                onChange={handleFileUpload}
+                onChange={handleAudioFileUpload}
+                className="hidden"
+              />
+              
+              <input 
+                type="file" 
+                ref={coverFileInputRef}
+                accept="image/*"
+                onChange={handleCoverFileUpload}
                 className="hidden"
               />
               
@@ -406,7 +453,7 @@ const AdminDashboard = () => {
                   </p>
                   <Button 
                     type="button" 
-                    onClick={triggerFileUpload}
+                    onClick={triggerAudioFileUpload}
                     disabled={isSubmitting}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
@@ -446,16 +493,50 @@ const AdminDashboard = () => {
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="albumCover">Album Cover URL</Label>
-                    <Input
-                      id="albumCover"
-                      value={newSong.albumCover}
-                      onChange={(e) => setNewSong({ ...newSong, albumCover: e.target.value })}
-                      placeholder="Enter album cover URL"
-                      required
-                    />
+                  
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="albumCover">Album Cover</Label>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                      <div className="flex-shrink-0">
+                        <div className="w-24 h-24 border rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
+                          {coverPreview ? (
+                            <img 
+                              src={coverPreview} 
+                              alt="Album cover preview" 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <ImageIcon className="h-10 w-10 text-muted-foreground" />
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-grow space-y-2">
+                        <div className="flex gap-2">
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={triggerCoverFileUpload} 
+                            className="flex-grow"
+                          >
+                            <ImageIcon className="mr-2 h-4 w-4" />
+                            Upload Cover Image
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Or enter URL below:</p>
+                        <Input
+                          id="albumCover"
+                          value={newSong.albumCover}
+                          onChange={(e) => {
+                            setNewSong({ ...newSong, albumCover: e.target.value });
+                            setCoverPreview(e.target.value);
+                          }}
+                          placeholder="Enter album cover URL"
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="audioSrc">Audio Source URL</Label>
                     <Input
