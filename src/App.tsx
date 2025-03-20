@@ -20,7 +20,16 @@ import AudioPlayer from "@/components/AudioPlayer";
 import MusicPlayer from "@/components/MusicPlayer";
 import "./App.css";
 
-const queryClient = new QueryClient();
+// Create a new query client with more sensible options for our app
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 function App() {
   return (

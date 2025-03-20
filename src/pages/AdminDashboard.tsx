@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
 import { useMusic } from "@/contexts/MusicContext";
@@ -8,26 +9,34 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BarChart, Users, Music, MessageSquare, Bell, Settings, ShieldAlert, Plus, Trash2 } from "lucide-react";
+import { BarChart, Users, Music, MessageSquare, Bell, Settings, ShieldAlert, Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { searchTracks } from "@/lib/api";
 
 const AdminDashboard = () => {
   const { user } = useUser();
-  const { songs, trendingSongs, isLoading } = useMusic();
+  const { songs, trendingSongs, isLoading, addSong, removeSong } = useMusic();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [newSong, setNewSong] = useState({
     title: "",
     artist: "",
     albumCover: "",
     audioSrc: "",
-    duration: 0,
+    duration: 180,
   });
 
-  const [manageSongs, setManageSongs] = useState([...songs]);
+  const [manageSongs, setManageSongs] = useState([]);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (songs?.length > 0) {
+      setManageSongs(songs);
+    }
+  }, [songs]);
+
+  useEffect(() => {
     if (user && !user.isAdmin) {
       toast.error("You don't have permission to access the admin dashboard");
       navigate("/");
@@ -36,12 +45,22 @@ const AdminDashboard = () => {
     }
   }, [user, navigate]);
 
-  const handleRemoveSong = (songId: string) => {
-    setManageSongs(prev => prev.filter(song => song.id !== songId));
-    toast.success("Song removed successfully");
+  const handleRemoveSong = async (songId) => {
+    try {
+      // Remove from context
+      await removeSong(songId);
+      
+      // Update local state
+      setManageSongs(prev => prev.filter(song => song.id !== songId));
+      
+      toast.success("Song removed successfully");
+    } catch (error) {
+      console.error("Error removing song:", error);
+      toast.error("Failed to remove song");
+    }
   };
 
-  const handleAddSong = (e: React.FormEvent) => {
+  const handleAddSong = async (e) => {
     e.preventDefault();
     
     if (!newSong.title || !newSong.artist || !newSong.albumCover || !newSong.audioSrc) {
@@ -49,28 +68,61 @@ const AdminDashboard = () => {
       return;
     }
     
-    const song = {
-      id: `song-${Date.now()}`,
-      title: newSong.title,
-      artist: newSong.artist,
-      albumCover: newSong.albumCover,
-      audioSrc: newSong.audioSrc,
-      duration: newSong.duration || 180,
-      artistId: `artist-${Date.now()}`,
-      albumId: `album-${Date.now()}`,
-    };
+    setIsSubmitting(true);
     
-    setManageSongs(prev => [song, ...prev]);
-    
-    setNewSong({
-      title: "",
-      artist: "",
-      albumCover: "",
-      audioSrc: "",
-      duration: 0,
-    });
-    
-    toast.success("Song added successfully");
+    try {
+      const song = {
+        id: `song-${Date.now()}`,
+        title: newSong.title,
+        artist: newSong.artist,
+        albumCover: newSong.albumCover,
+        audioSrc: newSong.audioSrc,
+        duration: newSong.duration || 180,
+        artistId: `artist-${Date.now()}`,
+        albumId: `album-${Date.now()}`,
+      };
+      
+      // Add to context
+      await addSong(song);
+      
+      // Update local state
+      setManageSongs(prev => [song, ...prev]);
+      
+      setNewSong({
+        title: "",
+        artist: "",
+        albumCover: "",
+        audioSrc: "",
+        duration: 180,
+      });
+      
+      toast.success("Song added successfully");
+    } catch (error) {
+      console.error("Error adding song:", error);
+      toast.error("Failed to add song");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSearchSample = async () => {
+    try {
+      const results = await searchTracks("sample music");
+      if (results && results.length > 0) {
+        const sample = results[0];
+        setNewSong({
+          title: sample.title,
+          artist: sample.artist,
+          albumCover: sample.albumCover,
+          audioSrc: sample.audioSrc,
+          duration: sample.duration,
+        });
+        toast.success("Sample data loaded");
+      }
+    } catch (error) {
+      console.error("Error fetching sample data:", error);
+      toast.error("Failed to load sample data");
+    }
   };
 
   if (!user || !user.isAdmin) {
@@ -314,16 +366,31 @@ const AdminDashboard = () => {
                     <Input
                       id="duration"
                       type="number"
+                      min="1"
                       value={newSong.duration || ""}
                       onChange={(e) => setNewSong({ ...newSong, duration: Number(e.target.value) })}
                       placeholder="Enter duration in seconds"
                     />
                   </div>
                 </div>
-                <Button type="submit" className="mt-4">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Song
-                </Button>
+                <div className="flex justify-between items-center mt-4">
+                  <Button type="button" variant="outline" onClick={handleSearchSample}>
+                    Load Sample Data
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Song
+                      </>
+                    )}
+                  </Button>
+                </div>
               </form>
             </CardContent>
           </Card>
@@ -347,7 +414,10 @@ const AdminDashboard = () => {
                 
                 <div className="divide-y">
                   {isLoading ? (
-                    <div className="p-4 text-center">Loading songs...</div>
+                    <div className="p-4 text-center">
+                      <Loader2 className="h-6 w-6 animate-spin inline-block mr-2" />
+                      Loading songs...
+                    </div>
                   ) : manageSongs.length === 0 ? (
                     <div className="p-4 text-center">No songs available</div>
                   ) : (
@@ -367,8 +437,8 @@ const AdminDashboard = () => {
                             size="sm"
                             onClick={() => handleRemoveSong(song.id)}
                           >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Remove</span>
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Remove
                           </Button>
                         </div>
                       </div>
