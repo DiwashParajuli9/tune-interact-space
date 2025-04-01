@@ -149,11 +149,11 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolumeState] = useState(0.7);
   const [progress, setProgress] = useState(0);
-  const [songs, setSongs] = useState<Song[]>(SAMPLE_TRACKS); // Initialize with sample tracks immediately
+  const [songs, setSongs] = useState<Song[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [queue, setQueue] = useState<Song[]>([]);
-  const [trendingSongs, setTrendingSongs] = useState<Song[]>(SAMPLE_TRACKS); // Initialize with sample tracks immediately
+  const [trendingSongs, setTrendingSongs] = useState<Song[]>([]);
   const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -193,6 +193,20 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           },
         ];
         
+        // First load user added songs from localStorage
+        const storedSongs = localStorage.getItem('userAddedSongs');
+        let userAddedSongs: Song[] = [];
+        
+        if (storedSongs) {
+          try {
+            userAddedSongs = JSON.parse(storedSongs);
+            console.log("Successfully loaded user added songs from localStorage:", userAddedSongs.length);
+          } catch (parseError) {
+            console.error("Failed to parse user added songs:", parseError);
+            userAddedSongs = [];
+          }
+        }
+        
         // Get chart tracks for trending songs
         let chartTracks = SAMPLE_TRACKS; // Start with sample tracks
         
@@ -208,8 +222,11 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setHasError(true);
         }
         
+        // Combine API tracks with user added songs
+        const allSongs = [...userAddedSongs, ...chartTracks];
+        
         setTrendingSongs(chartTracks);
-        setSongs(chartTracks);
+        setSongs(allSongs); // Set all songs including user added ones
         
         // Load stored playlists from localStorage
         const storedPlaylists = localStorage.getItem('playlists');
@@ -356,6 +373,19 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     };
   }, [currentSong]);
+
+  // Save user added songs to localStorage when they change
+  useEffect(() => {
+    // Only save user-added songs (not the API ones)
+    // We can identify user added songs because they typically have IDs that start with "user-"
+    if (songs && songs.length > 0) {
+      const userAddedSongs = songs.filter(song => song.id.startsWith('user-'));
+      if (userAddedSongs.length > 0) {
+        localStorage.setItem('userAddedSongs', JSON.stringify(userAddedSongs));
+        console.log(`Saved ${userAddedSongs.length} user-added songs to localStorage`);
+      }
+    }
+  }, [songs]);
 
   const playSong = (song: Song) => {
     if (!song) {
@@ -680,23 +710,29 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     
     try {
+      // Ensure song ID starts with "user-" to identify user-added songs
+      const userSong = {
+        ...song,
+        id: song.id.startsWith('user-') ? song.id : `user-${song.id}`
+      };
+      
       // Add song to the songs array
       setSongs(prevSongs => {
         // Check if song with the same ID already exists
-        const exists = prevSongs.some(s => s.id === song.id);
+        const exists = prevSongs.some(s => s.id === userSong.id);
         if (exists) {
           toast.error("Song with this ID already exists");
           return prevSongs;
         }
-        return [song, ...prevSongs];
+        return [userSong, ...prevSongs];
       });
       
       // If this is a trending song, add it to trending songs as well
       setTrendingSongs(prevTrending => {
         // Only add to trending if it's not already there and limit to 10
-        const exists = prevTrending.some(s => s.id === song.id);
+        const exists = prevTrending.some(s => s.id === userSong.id);
         if (exists) return prevTrending;
-        return [song, ...prevTrending].slice(0, 10);
+        return [userSong, ...prevTrending].slice(0, 10);
       });
       
       toast.success(`Song "${song.title}" added successfully`);
@@ -793,4 +829,3 @@ export const useMusic = () => {
   }
   return context;
 };
-
