@@ -1,5 +1,63 @@
 import { toast } from "sonner";
 
+// Define Song interface locally to avoid circular import
+export interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  albumCover: string;
+  audioSrc: string;
+  duration: number;
+  artistId?: string;
+  albumId?: string;
+  youtubeId?: string;
+  sourceType?: 'deezer' | 'youtube' | 'user';
+}
+
+// Types for YouTube API responses
+export interface YouTubeVideo {
+  id: string;
+  title: string;
+  channelTitle: string;
+  description: string;
+  thumbnails: {
+    default: { url: string; width: number; height: number };
+    medium: { url: string; width: number; height: number };
+    high: { url: string; width: number; height: number };
+  };
+  publishedAt: string;
+  duration?: string;
+}
+
+export interface YouTubeSearchResponse {
+  items: Array<{
+    id: { videoId: string };
+    snippet: {
+      title: string;
+      channelTitle: string;
+      description: string;
+      thumbnails: YouTubeVideo['thumbnails'];
+      publishedAt: string;
+    };
+  }>;
+}
+
+export interface YouTubeVideoDetailsResponse {
+  items: Array<{
+    id: string;
+    contentDetails: {
+      duration: string;
+    };
+    snippet: {
+      title: string;
+      channelTitle: string;
+      description: string;
+      thumbnails: YouTubeVideo['thumbnails'];
+      publishedAt: string;
+    };
+  }>;
+}
+
 // Types for Deezer API responses
 export interface DeezerArtist {
   id: number;
@@ -91,6 +149,12 @@ export interface DeezerPlaylist {
   };
   type: string;
 }
+
+// YouTube API configuration
+// NOTE: Replace with your actual YouTube Data API v3 key
+// For production, store this in Supabase Edge Function secrets
+const YOUTUBE_API_KEY = 'YOUR_YOUTUBE_API_KEY_HERE'; // Get from https://console.developers.google.com
+const YOUTUBE_BASE_URL = 'https://www.googleapis.com/youtube/v3';
 
 // Since AllOrigins is experiencing timeouts, let's use a different proxy service
 // or go directly to the Deezer API when possible with multiple fallbacks
@@ -593,5 +657,139 @@ export const getGenres = async () => {
     console.error("Error getting genres:", error);
     toast.error("Failed to get genres");
     return DEFAULT_GENRES;
+  }
+};
+
+// YouTube API Functions
+
+// Parse YouTube duration format (PT4M33S) to seconds
+const parseYouTubeDuration = (duration: string): number => {
+  const match = duration.match(/PT(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  
+  const minutes = parseInt(match[1] || '0');
+  const seconds = parseInt(match[2] || '0');
+  return minutes * 60 + seconds;
+};
+
+// Transform YouTube video to Song format
+export const transformYouTubeVideoToSong = (video: YouTubeVideo): Song => {
+  return {
+    id: `youtube-${video.id}`,
+    title: video.title,
+    artist: video.channelTitle,
+    albumCover: video.thumbnails.high?.url || video.thumbnails.medium?.url || video.thumbnails.default?.url,
+    audioSrc: `https://www.youtube.com/embed/${video.id}?autoplay=1`,
+    duration: video.duration ? parseYouTubeDuration(video.duration) : 0,
+    youtubeId: video.id,
+    sourceType: 'youtube' as const
+  };
+};
+
+// Search YouTube for music videos
+export const searchYouTubeMusic = async (query: string, maxResults = 10): Promise<Song[]> => {
+  try {
+    // Search for videos
+    const searchResponse = await fetch(
+      `${YOUTUBE_BASE_URL}/search?` +
+      `part=snippet&type=video&q=${encodeURIComponent(query + ' music')}&` +
+      `maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`
+    );
+
+    if (!searchResponse.ok) {
+      throw new Error(`YouTube search failed: ${searchResponse.status}`);
+    }
+
+    const searchData: YouTubeSearchResponse = await searchResponse.json();
+    
+    if (!searchData.items || searchData.items.length === 0) {
+      return [];
+    }
+
+    // Get video details including duration
+    const videoIds = searchData.items.map(item => item.id.videoId).join(',');
+    const detailsResponse = await fetch(
+      `${YOUTUBE_BASE_URL}/videos?` +
+      `part=snippet,contentDetails&id=${videoIds}&key=${YOUTUBE_API_KEY}`
+    );
+
+    if (!detailsResponse.ok) {
+      throw new Error(`YouTube details failed: ${detailsResponse.status}`);
+    }
+
+    const detailsData: YouTubeVideoDetailsResponse = await detailsResponse.json();
+
+    // Transform to Song format
+    return detailsData.items.map(item => {
+      const youTubeVideo: YouTubeVideo = {
+        id: item.id,
+        title: item.snippet.title,
+        channelTitle: item.snippet.channelTitle,
+        description: item.snippet.description,
+        thumbnails: item.snippet.thumbnails,
+        publishedAt: item.snippet.publishedAt,
+        duration: item.contentDetails.duration
+      };
+      return transformYouTubeVideoToSong(youTubeVideo);
+    });
+
+  } catch (error) {
+    console.error('Error searching YouTube:', error);
+    toast.error('YouTube search failed - API key may be invalid');
+    return [];
+  }
+};
+
+// Get YouTube trending music
+export const getYouTubeTrending = async (maxResults = 20): Promise<Song[]> => {
+  try {
+    // Search for trending music videos
+    const searchResponse = await fetch(
+      `${YOUTUBE_BASE_URL}/search?` +
+      `part=snippet&type=video&order=viewCount&q=music&` +
+      `maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`
+    );
+
+    if (!searchResponse.ok) {
+      throw new Error(`YouTube trending failed: ${searchResponse.status}`);
+    }
+
+    const searchData: YouTubeSearchResponse = await searchResponse.json();
+    
+    if (!searchData.items || searchData.items.length === 0) {
+      return [];
+    }
+
+    // Get video details including duration
+    const videoIds = searchData.items.map(item => item.id.videoId).join(',');
+    const detailsResponse = await fetch(
+      `${YOUTUBE_BASE_URL}/videos?` +
+      `part=snippet,contentDetails&id=${videoIds}&key=${YOUTUBE_API_KEY}`
+    );
+
+    if (!detailsResponse.ok) {
+      throw new Error(`YouTube details failed: ${detailsResponse.status}`);
+    }
+
+    const detailsData: YouTubeVideoDetailsResponse = await detailsResponse.json();
+
+    // Transform to Song format
+    return detailsData.items.map(item => {
+      const youTubeVideo: YouTubeVideo = {
+        id: item.id,
+        title: item.snippet.title,
+        channelTitle: item.snippet.channelTitle,
+        description: item.snippet.description,
+        thumbnails: item.snippet.thumbnails,
+        publishedAt: item.snippet.publishedAt,
+        duration: item.contentDetails.duration
+      };
+      return transformYouTubeVideoToSong(youTubeVideo);
+    });
+
+  } catch (error) {
+    console.error('Error getting YouTube trending:', error);
+    toast.error('Failed to get YouTube trending videos');
+    return [];
   }
 };

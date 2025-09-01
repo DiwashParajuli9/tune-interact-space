@@ -12,6 +12,8 @@ export interface Song {
   duration: number;
   artistId?: string;
   albumId?: string;
+  youtubeId?: string; // For YouTube videos
+  sourceType?: 'deezer' | 'youtube' | 'user'; // Track source
 }
 
 export interface Artist {
@@ -207,25 +209,39 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         }
         
-        // Get chart tracks for trending songs
+        // Get chart tracks and YouTube trending for trending songs
         let chartTracks = SAMPLE_TRACKS; // Start with sample tracks
+        let youtubeTracks: Song[] = [];
         
         try {
-          const apiTracks = await api.getChartTracks();
-          if (apiTracks && apiTracks.length > 0) {
-            chartTracks = apiTracks;
-            console.log("Successfully loaded chart tracks from API");
+          // Load both Deezer and YouTube tracks in parallel
+          const [deezerTracks, youtubeResults] = await Promise.all([
+            api.getChartTracks(),
+            api.getYouTubeTrending(10) // Get 10 trending YouTube videos
+          ]);
+          
+          if (deezerTracks && deezerTracks.length > 0) {
+            chartTracks = deezerTracks;
+            console.log("Successfully loaded Deezer chart tracks from API");
+          }
+          
+          if (youtubeResults && youtubeResults.length > 0) {
+            youtubeTracks = youtubeResults;
+            console.log("Successfully loaded YouTube trending tracks");
           }
         } catch (error) {
           console.error("Failed to load chart tracks:", error);
-          toast.error("Using sample tracks - API unavailable");
+          toast.error("Using sample tracks - APIs unavailable");
           setHasError(true);
         }
         
-        // Combine API tracks with user added songs
-        const allSongs = [...userAddedSongs, ...chartTracks];
+        // Combine all tracks: user added songs + Deezer tracks + YouTube tracks
+        const allSongs = [...userAddedSongs, ...chartTracks, ...youtubeTracks];
         
-        setTrendingSongs(chartTracks);
+        // Combine Deezer and YouTube for trending (limit to 20 total)
+        const allTrending = [...chartTracks, ...youtubeTracks].slice(0, 20);
+        
+        setTrendingSongs(allTrending);
         setSongs(allSongs); // Set all songs including user added ones
         
         // Load stored playlists from localStorage

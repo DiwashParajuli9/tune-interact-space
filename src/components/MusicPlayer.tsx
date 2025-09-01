@@ -8,6 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { useMusic } from "@/contexts/MusicContext";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import YouTubePlayer from "./YouTubePlayer";
 
 const MusicPlayer: React.FC = () => {
   const {
@@ -315,27 +316,38 @@ const MusicPlayer: React.FC = () => {
         {expanded && (
           <div className="h-76 p-6 animate-fade-in">
             <div className="flex h-full">
-              {/* Album art and visualizer */}
+              {/* Album art, YouTube player, and visualizer */}
               <div className="w-2/3 pr-8 flex flex-col items-center justify-center">
-                <div className="w-64 h-64 rounded-lg overflow-hidden shadow-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 mb-8 relative group">
-                  <img
-                    src={currentSong.albumCover}
-                    alt={currentSong.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                    <div>
-                      <h4 className="text-white font-medium">{currentSong.title}</h4>
-                      <p className="text-white/80 text-sm">{currentSong.artist}</p>
-                    </div>
+                {/* Show YouTube player for YouTube videos, otherwise show album art */}
+                {currentSong.youtubeId && currentSong.sourceType === 'youtube' ? (
+                  <div className="w-full max-w-md mb-4">
+                    <YouTubePlayer 
+                      videoId={currentSong.youtubeId}
+                      onReady={() => console.log('YouTube player ready')}
+                      onStateChange={(state) => console.log('YouTube state:', state)}
+                    />
                   </div>
-                  
-                  {isPlaying && (
-                    <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary/80 flex items-center justify-center">
-                      <span className="block w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                ) : (
+                  <div className="w-64 h-64 rounded-lg overflow-hidden shadow-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 mb-8 relative group">
+                    <img
+                      src={currentSong.albumCover}
+                      alt={currentSong.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                      <div>
+                        <h4 className="text-white font-medium">{currentSong.title}</h4>
+                        <p className="text-white/80 text-sm">{currentSong.artist}</p>
+                      </div>
                     </div>
-                  )}
-                </div>
+                    
+                    {isPlaying && (
+                      <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary/80 flex items-center justify-center">
+                        <span className="block w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Music visualizer */}
                 <div className="visualizer mt-4 gap-1 h-12">
@@ -437,6 +449,24 @@ const MusicPlayer: React.FC = () => {
                         </div>
                       </div>
                       
+                      <div className="mb-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span>Source</span>
+                          <span className="font-medium capitalize">
+                            {currentSong.sourceType || 'Deezer'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {currentSong.youtubeId && (
+                        <div className="mb-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span>YouTube ID</span>
+                            <span className="font-medium text-xs">{currentSong.youtubeId}</span>
+                          </div>
+                        </div>
+                      )}
+                      
                       {currentSong.albumId && (
                         <div className="mb-2">
                           <div className="flex items-center justify-between text-sm">
@@ -446,20 +476,11 @@ const MusicPlayer: React.FC = () => {
                         </div>
                       )}
                       
-                      {currentSong.artistId && (
-                        <div className="mb-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span>Artist ID</span>
-                            <span className="font-medium">{currentSong.artistId}</span>
-                          </div>
-                        </div>
-                      )}
-                      
                       <div>
                         <div className="flex items-center justify-between text-sm">
-                          <span>Preview</span>
+                          <span>Full Track</span>
                           <span className="font-medium">
-                            {currentSong.audioSrc ? "Available" : "Unavailable"}
+                            {currentSong.sourceType === 'youtube' ? "Available" : "Preview Only"}
                           </span>
                         </div>
                       </div>

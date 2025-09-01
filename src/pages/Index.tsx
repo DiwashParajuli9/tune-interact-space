@@ -9,6 +9,7 @@ import * as api from "@/lib/api";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import YouTubeSetup from "@/components/YouTubeSetup";
 
 // Sample tracks for fallback
 const SAMPLE_TRACKS = [
@@ -197,6 +198,9 @@ const Home = () => {
 
   return (
     <div className="pb-24">
+      {/* YouTube Setup Alert */}
+      <YouTubeSetup />
+
       {/* Hero section */}
       <div className="relative rounded-2xl overflow-hidden mb-10">
         <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-20"></div>
