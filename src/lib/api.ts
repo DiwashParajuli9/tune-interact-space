@@ -153,7 +153,8 @@ export interface DeezerPlaylist {
 // YouTube API configuration
 // NOTE: Replace with your actual YouTube Data API v3 key
 // For production, store this in Supabase Edge Function secrets
-const YOUTUBE_API_KEY = 'YOUR_YOUTUBE_API_KEY_HERE'; // Get from https://console.developers.google.com
+const YOUTUBE_API_KEY = 'AIzaSyDEI5BokwcXEUJL7X9xJBAdi6D-erYs6no'; // Get from https://console.developers.google.com
+export const IS_YOUTUBE_KEY_SET = Boolean(YOUTUBE_API_KEY && !YOUTUBE_API_KEY.includes('YOUR_YOUTUBE_API_KEY_HERE'));
 const YOUTUBE_BASE_URL = 'https://www.googleapis.com/youtube/v3';
 
 // Since AllOrigins is experiencing timeouts, let's use a different proxy service

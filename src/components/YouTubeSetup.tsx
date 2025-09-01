@@ -2,12 +2,13 @@ import React from 'react';
 import { AlertCircle, ExternalLink } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { IS_YOUTUBE_KEY_SET } from '@/lib/api';
 
 const YouTubeSetup: React.FC = () => {
+  if (IS_YOUTUBE_KEY_SET) return null;
   const openYouTubeConsole = () => {
     window.open('https://console.developers.google.com/', '_blank');
   };
-
   return (
     <Alert className="mb-6">
       <AlertCircle className="h-4 w-4" />
