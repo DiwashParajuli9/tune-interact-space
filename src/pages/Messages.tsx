@@ -31,7 +31,7 @@ const Messages = () => {
 
   // Sort conversations by last activity
   const sortedConversations = [...conversations].sort((a, b) =>
-    b.lastActivity.getTime() - a.lastActivity.getTime()
+    b.last_message_at.getTime() - a.last_message_at.getTime()
   );
 
   // Scroll to bottom of messages when conversation changes or new message is added
@@ -230,7 +230,7 @@ const Messages = () => {
                           src={
                             activeConversation.participants.find(
                               (p) => p.id !== currentUser.id
-                            )?.avatar || "/placeholder.svg"
+                            )?.avatar_url || "/placeholder.svg"
                           }
                           alt="User"
                           className="w-full h-full object-cover"
@@ -248,7 +248,7 @@ const Messages = () => {
                         src={
                           activeConversation.participants.find(
                             (p) => p.id !== currentUser.id
-                          )?.avatar || "/placeholder.svg"
+                          )?.avatar_url || "/placeholder.svg"
                         }
                         alt="User"
                         className="w-full h-full object-cover"
@@ -258,8 +258,8 @@ const Messages = () => {
                   <div>
                     <h3 className="font-medium">
                       {activeConversation.participants
-                        .filter((p) => p.id !== currentUser.id)
-                        .map((p) => p.name)
+                        .filter((p) => p.id !== currentUser?.id)
+                        .map((p) => p.username)
                         .join(", ")}
                     </h3>
                     <p className="text-xs text-muted-foreground">
@@ -277,9 +277,9 @@ const Messages = () => {
                 <div className="space-y-4">
                   {activeConversation.messages.map((msg) => {
                     const sender = activeConversation.participants.find(
-                      (p) => p.id === msg.userId
+                      (p) => p.id === msg.user_id
                     );
-                    const isCurrentUser = msg.userId === currentUser.id;
+                    const isCurrentUser = msg.user_id === currentUser?.id;
 
                     return (
                       <div
@@ -299,13 +299,13 @@ const Messages = () => {
                             <div className="flex items-center ml-2 mb-1">
                               <div className="w-6 h-6 rounded-full overflow-hidden bg-muted mr-2">
                                 <img
-                                  src={sender?.avatar || "/placeholder.svg"}
-                                  alt={sender?.name || "User"}
+                                  src={sender?.avatar_url || "/placeholder.svg"}
+                                  alt={sender?.username || "User"}
                                   className="w-full h-full object-cover"
                                 />
                               </div>
                               <span className="text-xs font-medium">
-                                {sender?.name || "User"}
+                                {sender?.username || "User"}
                               </span>
                             </div>
                           )}
@@ -325,7 +325,7 @@ const Messages = () => {
                               isCurrentUser ? "text-right mr-2" : "ml-2"
                             )}
                           >
-                            {formatMessageTime(msg.timestamp)}
+                            {formatMessageTime(msg.created_at)}
                           </div>
                         </div>
                       </div>

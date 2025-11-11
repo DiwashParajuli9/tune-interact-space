@@ -35,19 +35,14 @@ const Profile = () => {
       <Card>
         <CardHeader className="flex flex-row items-center gap-4">
           <Avatar className="h-16 w-16 border border-white/10">
-            <AvatarImage src={user.photoURL || ""} alt={user.name} />
+            <AvatarImage src={user.user_metadata?.avatar_url || ""} />
             <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white">
-              {user.name.charAt(0)}
+              {user.email?.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div>
-            <CardTitle className="text-2xl">{user.name}</CardTitle>
-            <CardDescription>{user.email}</CardDescription>
-            {user.isAdmin && (
-              <span className="inline-flex items-center px-2.5 py-0.5 mt-2 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                Admin
-              </span>
-            )}
+            <CardTitle className="text-2xl">{user.email}</CardTitle>
+            <CardDescription>User ID: {user.id}</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -67,36 +62,8 @@ const Profile = () => {
                 <span className="font-medium">Email</span>
                 <span className="text-muted-foreground">{user.email}</span>
               </div>
-              <div className="flex items-center justify-between py-2 border-b">
-                <span className="font-medium">Role</span>
-                <span className="text-muted-foreground">{user.isAdmin ? 'Administrator' : 'User'}</span>
-              </div>
             </div>
           </div>
-
-          {user.isAdmin && (
-            <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800 mt-6">
-              <div className="flex items-center gap-3">
-                <div className="bg-purple-100 dark:bg-purple-800 p-2 rounded-full">
-                  <ShieldAlert className="h-5 w-5 text-purple-600 dark:text-purple-300" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-purple-800 dark:text-purple-300">Admin Access</h4>
-                  <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
-                    You have administrator privileges on this platform.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3">
-                <Button 
-                  onClick={() => navigate('/admin')}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  Access Admin Dashboard
-                </Button>
-              </div>
-            </div>
-          )}
         </CardContent>
         <CardFooter className="flex justify-end">
           <AuthButtons />

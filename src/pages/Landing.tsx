@@ -8,7 +8,7 @@ import { Music2, Headphones, ListMusic, Sparkles } from "lucide-react";
 
 const Landing = () => {
   const navigate = useNavigate();
-  const { user, signInWithGoogle } = useUser();
+  const { user } = useUser();
   
   // If user is already logged in, redirect to dashboard
   React.useEffect(() => {
@@ -17,13 +17,8 @@ const Landing = () => {
     }
   }, [user, navigate]);
   
-  const handleGoogleAuth = async () => {
-    try {
-      await signInWithGoogle();
-      navigate("/");
-    } catch (error) {
-      console.error("Google authentication failed:", error);
-    }
+  const handleGetStarted = () => {
+    navigate("/auth");
   };
 
   return (
@@ -44,11 +39,10 @@ const Landing = () => {
         
         <Button 
           size="lg"
-          className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 border-0 text-white px-8 py-6 text-lg flex items-center gap-3"
-          onClick={handleGoogleAuth}
+          className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 border-0 text-white px-8 py-6 text-lg"
+          onClick={handleGetStarted}
         >
-          <GoogleIcon />
-          Sign in with Google
+          Get Started
         </Button>
         
         <p className="text-sm text-white/50 mt-4">

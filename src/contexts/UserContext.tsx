@@ -1,79 +1,60 @@
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  photoURL?: string;
-  isAdmin?: boolean;
-} | null;
-
-type UserContextType = {
-  user: User;
+interface UserContextType {
+  user: User | null;
+  session: Session | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-};
+}
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
+
+export const UserProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (event === 'SIGNED_IN') {
+          navigate('/');
+        }
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/auth');
+  };
+
+  return (
+    <UserContext.Provider value={{ user, session, loading, signOut }}>
+      {children}
+    </UserContext.Provider>
+  );
+};
 
 export const useUser = () => {
   const context = useContext(UserContext);
   if (context === undefined) {
-    throw new Error("useUser must be used within a UserProvider");
+    throw new Error('useUser must be used within a UserProvider');
   }
   return context;
-};
-
-export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Check if user is stored in localStorage
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
-  }, []);
-
-  const signInWithGoogle = async () => {
-    try {
-      // For demo purposes, we'll create two user types:
-      // 1. An admin user with email admin@example.com
-      // 2. A regular user with any other email
-      
-      const email = prompt("Enter your email (use admin@example.com for admin access)") || "";
-      const isAdmin = email.toLowerCase() === "admin@example.com";
-      
-      const mockUser = {
-        id: isAdmin ? "admin-user-123" : "google-user-123",
-        name: isAdmin ? "Admin User" : "Regular User",
-        email: email,
-        photoURL: "https://via.placeholder.com/150",
-        isAdmin: isAdmin
-      };
-      
-      setUser(mockUser);
-      localStorage.setItem("user", JSON.stringify(mockUser));
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Error signing in with Google:", error);
-      return Promise.reject(error);
-    }
-  };
-
-  const signOut = async () => {
-    setUser(null);
-    localStorage.removeItem("user");
-    return Promise.resolve();
-  };
-
-  return (
-    <UserContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
-      {children}
-    </UserContext.Provider>
-  );
 };

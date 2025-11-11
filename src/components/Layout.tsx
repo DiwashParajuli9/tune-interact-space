@@ -29,10 +29,10 @@ const Layout: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Redirect to landing if not authenticated
+  // Redirect to auth if not authenticated
   useEffect(() => {
     if (!user) {
-      navigate("/landing");
+      navigate("/auth");
     }
   }, [user, navigate]);
 
@@ -146,9 +146,9 @@ const Layout: React.FC = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="flex items-center gap-2">
                   <Avatar className="h-8 w-8 border border-white/10">
-                    <AvatarImage src={user.photoURL || ""} alt={user.name} />
+                    <AvatarImage src={user.user_metadata?.avatar_url || ""} />
                     <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-xs">
-                      {user.name.charAt(0)}
+                      {user.email?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -161,7 +161,7 @@ const Layout: React.FC = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Link to="/profile">
+            <Link to="/auth">
               <Button variant="ghost" size="sm">
                 <User size={20} />
               </Button>

@@ -39,11 +39,8 @@ const AdminDashboard = () => {
   }, [songs]);
 
   useEffect(() => {
-    if (user && !user.isAdmin) {
-      toast.error("You don't have permission to access the admin dashboard");
-      navigate("/");
-    } else if (!user) {
-      navigate("/landing");
+    if (!user) {
+      navigate("/auth");
     }
   }, [user, navigate]);
 
@@ -235,22 +232,8 @@ const AdminDashboard = () => {
     coverFileInputRef.current.click();
   };
 
-  if (!user || !user.isAdmin) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>
-              You don't have permission to access the admin dashboard.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button onClick={() => navigate("/")}>Return to Home</Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
+  if (!user) {
+    return null;
   }
 
   const stats = [

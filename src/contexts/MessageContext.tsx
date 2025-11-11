@@ -1,30 +1,31 @@
-
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useUser } from "./UserContext";
 
 // Types
 interface User {
   id: string;
-  name: string;
-  avatar: string;
+  username: string;
+  avatar_url: string;
 }
 
 interface Message {
   id: string;
-  userId: string;
+  user_id: string;
   content: string;
-  timestamp: Date;
+  created_at: Date;
 }
 
 interface Conversation {
   id: string;
   participants: User[];
   messages: Message[];
-  lastActivity: Date;
+  last_message_at: Date;
 }
 
 interface MessageContextType {
-  currentUser: User;
+  currentUser: User | null;
   users: User[];
   conversations: Conversation[];
   activeConversation: Conversation | null;
@@ -34,148 +35,148 @@ interface MessageContextType {
   searchUsers: (query: string) => User[];
 }
 
-// Mock data
-const mockUsers: User[] = [
-  {
-    id: "user-1",
-    name: "You",
-    avatar: "/placeholder.svg",
-  },
-  {
-    id: "user-2",
-    name: "Alex Kim",
-    avatar: "/placeholder.svg",
-  },
-  {
-    id: "user-3",
-    name: "Jordan Taylor",
-    avatar: "/placeholder.svg",
-  },
-  {
-    id: "user-4",
-    name: "Morgan Lee",
-    avatar: "/placeholder.svg",
-  },
-  {
-    id: "user-5",
-    name: "Riley Johnson",
-    avatar: "/placeholder.svg",
-  },
-];
-
-const generateMockMessages = (userIds: string[]): Message[] => {
-  const messages = [];
-  const now = new Date();
-  
-  // Generate 3-5 messages for this conversation
-  const count = Math.floor(Math.random() * 3) + 3;
-  
-  for (let i = 0; i < count; i++) {
-    const userId = userIds[Math.floor(Math.random() * userIds.length)];
-    const timestamp = new Date(now.getTime() - (count - i) * 3600000 * Math.random());
-    
-    messages.push({
-      id: `msg-${Date.now()}-${i}`,
-      userId,
-      content: getRandomMessage(),
-      timestamp,
-    });
-  }
-  
-  // Sort by timestamp
-  return messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-};
-
-const getRandomMessage = (): string => {
-  const messages = [
-    "Hey, have you listened to the new album?",
-    "This playlist is amazing!",
-    "I'm going to their concert next month.",
-    "What's your favorite track?",
-    "The bridge in that song is incredible.",
-    "I've been looking for this artist for ages!",
-    "Their live performances are even better than the recordings.",
-    "The percussion on this track is so unique.",
-    "I can't stop listening to this on repeat.",
-    "Do you have any similar recommendations?",
-  ];
-  return messages[Math.floor(Math.random() * messages.length)];
-};
-
-const generateMockConversations = (users: User[]): Conversation[] => {
-  const currentUserId = users[0].id;
-  return [
-    {
-      id: "conv-1",
-      participants: [users[0], users[1]],
-      messages: generateMockMessages([currentUserId, users[1].id]),
-      lastActivity: new Date(),
-    },
-    {
-      id: "conv-2",
-      participants: [users[0], users[2]],
-      messages: generateMockMessages([currentUserId, users[2].id]),
-      lastActivity: new Date(Date.now() - 86400000), // 1 day ago
-    },
-    {
-      id: "conv-3",
-      participants: [users[0], users[3], users[4]],
-      messages: generateMockMessages([currentUserId, users[3].id, users[4].id]),
-      lastActivity: new Date(Date.now() - 172800000), // 2 days ago
-    },
-  ];
-};
-
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
 
-export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [users] = useState<User[]>(mockUsers);
-  const [conversations, setConversations] = useState<Conversation[]>(
-    generateMockConversations(mockUsers)
-  );
+export const MessageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user: authUser } = useUser();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversationState] = useState<Conversation | null>(null);
-  const currentUser = users[0]; // First user is the current user
+
+  // Fetch current user profile
+  useEffect(() => {
+    if (!authUser) return;
+
+    const fetchProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (data && !error) {
+        setCurrentUser(data);
+      }
+    };
+
+    fetchProfile();
+  }, [authUser]);
+
+  // Fetch all users
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
+
+      if (data && !error) {
+        setUsers(data);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  // Fetch conversations
+  useEffect(() => {
+    if (!authUser) return;
+
+    const fetchConversations = async () => {
+      const { data: convData, error } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id, conversations(id, last_message_at)')
+        .eq('user_id', authUser.id);
+
+      if (convData && !error) {
+        const conversationsWithDetails = await Promise.all(
+          convData.map(async (conv: any) => {
+            // Get all participants for this conversation
+            const { data: participantData } = await supabase
+              .from('conversation_participants')
+              .select('user_id')
+              .eq('conversation_id', conv.conversation_id);
+
+            const participantIds = participantData?.map(p => p.user_id) || [];
+
+            // Get profiles for all participants
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .in('id', participantIds);
+
+            const { data: messages } = await supabase
+              .from('messages')
+              .select('*')
+              .eq('conversation_id', conv.conversation_id)
+              .order('created_at', { ascending: true });
+
+            return {
+              id: conv.conversation_id,
+              participants: profileData || [],
+              messages: messages?.map(m => ({ ...m, created_at: new Date(m.created_at) })) || [],
+              last_message_at: new Date(conv.conversations.last_message_at),
+            };
+          })
+        );
+
+        setConversations(conversationsWithDetails);
+      }
+    };
+
+    fetchConversations();
+
+    // Subscribe to new messages
+    const channel = supabase
+      .channel('messages-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        () => {
+          fetchConversations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [authUser]);
 
   const setActiveConversation = (conversation: Conversation) => {
     setActiveConversationState(conversation);
   };
 
-  const sendMessage = (content: string) => {
-    if (!activeConversation) return;
+  const sendMessage = async (content: string) => {
+    if (!activeConversation || !authUser) return;
     if (!content.trim()) return;
 
-    const newMessage: Message = {
-      id: `msg-${Date.now()}`,
-      userId: currentUser.id,
-      content,
-      timestamp: new Date(),
-    };
+    const { error } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: activeConversation.id,
+        user_id: authUser.id,
+        content
+      });
 
-    const updatedConversation: Conversation = {
-      ...activeConversation,
-      messages: [...activeConversation.messages, newMessage],
-      lastActivity: new Date(),
-    };
-
-    setConversations(
-      conversations.map((conv) => 
-        conv.id === activeConversation.id ? updatedConversation : conv
-      )
-    );
-
-    setActiveConversationState(updatedConversation);
+    if (error) {
+      toast.error("Failed to send message");
+    }
   };
 
-  const createConversation = (participantIds: string[]) => {
+  const createConversation = async (participantIds: string[]) => {
+    if (!authUser) return;
+
     // Ensure current user is included
-    if (!participantIds.includes(currentUser.id)) {
-      participantIds.push(currentUser.id);
+    if (!participantIds.includes(authUser.id)) {
+      participantIds.push(authUser.id);
     }
 
-    // Get participant users
-    const participants = users.filter((user) => participantIds.includes(user.id));
-
-    // Check if conversation already exists with these exact participants
+    // Check if conversation already exists
     const participantIdsSet = new Set(participantIds);
     const existingConversation = conversations.find((conv) => {
       const convParticipantIds = new Set(conv.participants.map((p) => p.id));
@@ -192,11 +193,39 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     // Create new conversation
+    const { data: convData, error } = await supabase
+      .from('conversations')
+      .insert({})
+      .select()
+      .single();
+
+    if (error || !convData) {
+      toast.error("Failed to create conversation");
+      return;
+    }
+
+    // Add participants
+    const participantInserts = participantIds.map(id => ({
+      conversation_id: convData.id,
+      user_id: id
+    }));
+
+    const { error: partError } = await supabase
+      .from('conversation_participants')
+      .insert(participantInserts);
+
+    if (partError) {
+      toast.error("Failed to add participants");
+      return;
+    }
+
+    const participants = users.filter(user => participantIds.includes(user.id));
+
     const newConversation: Conversation = {
-      id: `conv-${Date.now()}`,
+      id: convData.id,
       participants,
       messages: [],
-      lastActivity: new Date(),
+      last_message_at: new Date(convData.created_at),
     };
 
     setConversations([...conversations, newConversation]);
@@ -205,12 +234,11 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const searchUsers = (query: string): User[] => {
-    if (!query) return [];
+    if (!query || !authUser) return [];
     const lowerQuery = query.toLowerCase();
-    // Don't include current user in search results
     return users
-      .filter((user) => user.id !== currentUser.id)
-      .filter((user) => user.name.toLowerCase().includes(lowerQuery));
+      .filter((user) => user.id !== authUser.id)
+      .filter((user) => user.username.toLowerCase().includes(lowerQuery));
   };
 
   return (
